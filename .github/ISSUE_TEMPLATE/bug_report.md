@@ -24,7 +24,7 @@ If applicable, add screenshots to help explain your problem.
 **Environment:**
  - OS: [e.g. Windows, macOS, Linux]
  - Obsidian Version: [e.g. 0.15.0]
- - Plugin Version: [e.g. 1.0.0]
+ - Plugin Version: [e.g. 0.0.1]
 
 **Additional context**
 Add any other context about the problem here. 

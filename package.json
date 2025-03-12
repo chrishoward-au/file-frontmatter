@@ -1,6 +1,6 @@
 {
 	"name": "file-frontmatter",
-	"version": "1.0.0",
+	"version": "0.0.1",
 	"description": "A plugin to manage file frontmatter in Obsidian",
 	"main": "main.js",
 	"scripts": {
