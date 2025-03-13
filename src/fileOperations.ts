@@ -97,17 +97,22 @@ async function createNoteContent(file: TFile, fileLink: string, settings: FileFr
                     extractedText,
                     settings.openAIApiKey,
                     settings.maxKeywords,
-                    settings.aiPrompt
+                    settings.aiPrompt,
+                    app
                 );
                 console.log('Generated keywords:', keywords);
             } catch (error) {
-                // If it's a rate limit error, we want to propagate it
-                if (error.message.includes('Rate limit')) {
+                if (error.message === 'Note creation cancelled') {
                     throw error;
                 }
-                // For other errors, we'll continue with empty keywords
-                console.error('Error generating keywords, continuing with empty tags:', error);
-                new Notice('Could not generate tags, creating note without tags');
+                // For other errors, we'll prompt for manual tags
+                console.error('Error generating keywords:', error);
+                new Notice('Could not generate tags automatically. Would you like to enter them manually?');
+                try {
+                    keywords = await promptForManualTags(app);
+                } catch (e) {
+                    throw new Error('Note creation cancelled');
+                }
             }
         }
         
@@ -130,9 +135,10 @@ async function createNoteContent(file: TFile, fileLink: string, settings: FileFr
         return `${frontmatter}\n\n## ${file.basename}\n\n![[${fileLink}]]\n\n## Extracted Text\n\n${extractedText}\n`;
     } catch (error) {
         console.error('Error creating note content:', error);
-        // If it's a rate limit error, we want to show a specific message
-        if (error.message.includes('Rate limit')) {
-            new Notice('OpenAI rate limit reached. Please wait a moment and try again.');
+        if (error.message === 'Note creation cancelled') {
+            new Notice('Note creation cancelled');
+        } else {
+            new Notice(`Error creating note: ${error.message}`);
         }
         throw error;
     }
@@ -149,4 +155,10 @@ function createBasicNoteContent(file: TFile, fileLink: string, settings: FileFro
     });
     
     return `${frontmatter}\n\n## ${file.basename}\n\n![[${fileLink}]]\n`;
+}
+
+async function promptForManualTags(app: App): Promise<string[]> {
+    // Implementation of promptForManualTags function
+    // This is a placeholder and should be replaced with the actual implementation
+    return [];
 } 
