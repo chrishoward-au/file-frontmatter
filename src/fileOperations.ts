@@ -78,6 +78,7 @@ async function createNoteContent(file: TFile, fileLink: string, settings: FileFr
         console.log('Extracted text length:', extractedText?.length || 0);
         
         if (!extractedText) {
+            new Notice('No text could be extracted from the file');
             throw new Error('No text could be extracted from the file');
         }
 
@@ -91,13 +92,23 @@ async function createNoteContent(file: TFile, fileLink: string, settings: FileFr
         console.log('API Key in settings:', settings.openAIApiKey ? 'Present' : 'Missing');
         let keywords: string[] = [];
         if (settings.openAIApiKey) {
-            keywords = await generateKeywords(
-                extractedText,
-                settings.openAIApiKey,
-                settings.maxKeywords,
-                settings.aiPrompt
-            );
-            console.log('Generated keywords:', keywords);
+            try {
+                keywords = await generateKeywords(
+                    extractedText,
+                    settings.openAIApiKey,
+                    settings.maxKeywords,
+                    settings.aiPrompt
+                );
+                console.log('Generated keywords:', keywords);
+            } catch (error) {
+                // If it's a rate limit error, we want to propagate it
+                if (error.message.includes('Rate limit')) {
+                    throw error;
+                }
+                // For other errors, we'll continue with empty keywords
+                console.error('Error generating keywords, continuing with empty tags:', error);
+                new Notice('Could not generate tags, creating note without tags');
+            }
         }
         
         // Take only the specified number of keywords
@@ -119,6 +130,10 @@ async function createNoteContent(file: TFile, fileLink: string, settings: FileFr
         return `${frontmatter}\n\n## ${file.basename}\n\n![[${fileLink}]]\n\n## Extracted Text\n\n${extractedText}\n`;
     } catch (error) {
         console.error('Error creating note content:', error);
+        // If it's a rate limit error, we want to show a specific message
+        if (error.message.includes('Rate limit')) {
+            new Notice('OpenAI rate limit reached. Please wait a moment and try again.');
+        }
         throw error;
     }
 }

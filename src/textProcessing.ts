@@ -1,4 +1,4 @@
-import { App, TFile, requestUrl } from 'obsidian';
+import { App, Notice, TFile, requestUrl } from 'obsidian';
 import { TextExtractorApi } from './types';
 
 export async function extractTextFromFile(app: App, file: TFile): Promise<string | null> {
@@ -22,6 +22,11 @@ interface OpenAIResponse {
             content: string;
         };
     }>;
+}
+
+// Add delay function for rate limiting
+function delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 export async function generateKeywords(text: string, apiKey: string, maxKeywords: number, prompt: string): Promise<string[]> {
@@ -57,8 +62,23 @@ export async function generateKeywords(text: string, apiKey: string, maxKeywords
 
         console.log('API Response status:', response.status);
 
+        if (response.status === 429) {
+            new Notice('OpenAI rate limit reached. Please wait a moment and try again.');
+            // Add a delay before retrying
+            await delay(2000);
+            throw new Error('Rate limit reached. Please try again in a few moments.');
+        }
+
         if (response.status !== 200) {
-            throw new Error(`API request failed: ${response.status}`);
+            let errorMessage = 'API request failed';
+            try {
+                const errorData = response.json;
+                errorMessage = errorData.error?.message || `API error (${response.status})`;
+            } catch (e) {
+                errorMessage = `API error (${response.status})`;
+            }
+            new Notice(`OpenAI API error: ${errorMessage}`);
+            throw new Error(errorMessage);
         }
 
         const data = response.json as OpenAIResponse;
@@ -73,6 +93,11 @@ export async function generateKeywords(text: string, apiKey: string, maxKeywords
         if (!apiKey) {
             throw new Error('OpenAI API key is not set. Please add it in the plugin settings.');
         }
+        // Make error messages more user-friendly
+        const errorMessage = error.message.includes('Rate limit') 
+            ? error.message 
+            : 'Failed to generate tags. Please check your API key and try again.';
+        new Notice(errorMessage);
         throw error;
     }
 } 
