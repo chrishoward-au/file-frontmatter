@@ -12,30 +12,33 @@ export function registerCommands(plugin: Plugin, settings: FileFrontmatterSettin
     plugin.addCommand({
         id: 'create-note-for-file',
         name: 'Create note for selected file',
-        checkCallback: (checking: boolean) => {
+        callback: () => {
             // Get the active file
             const activeFile = plugin.app.workspace.getActiveFile();
             
-            // Ensure there is an active file and it's not already a markdown file
-            const canRun = !!activeFile && 
-                activeFile.extension !== 'md' && 
-                settings.acceptedFileTypes.includes(activeFile.extension.toLowerCase());
-            
-            if (checking) {
-                return canRun;
+            // Check for API key first
+            if (!settings.openAIApiKey) {
+                new Notice('Please set your OpenAI API key in the plugin settings');
+                return;
             }
             
-            if (canRun) {
-                handleCreateNoteCommand(plugin.app, activeFile, settings);
-            } else if (!activeFile) {
-                new Notice('No file is open');
-            } else if (activeFile.extension === 'md') {
+            // Check file conditions
+            if (!activeFile) {
+                new Notice('Please open a PDF or other supported file first');
+                return;
+            }
+            
+            if (activeFile.extension === 'md') {
                 new Notice('Cannot create a note for a markdown file');
-            } else {
-                new Notice(`File type '${activeFile.extension}' is not in the list of accepted file types`);
+                return;
             }
             
-            return canRun;
+            if (!settings.acceptedFileTypes.includes(activeFile.extension.toLowerCase())) {
+                new Notice(`File type '${activeFile.extension}' is not supported. Supported types: ${settings.acceptedFileTypes.join(', ')}`);
+                return;
+            }
+            
+            handleCreateNoteCommand(plugin.app, activeFile, settings);
         }
     });
 }

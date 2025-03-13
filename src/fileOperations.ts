@@ -73,32 +73,47 @@ function isAcceptedFileType(file: TFile, acceptedFileTypes: string[]): boolean {
 async function createNoteContent(file: TFile, fileLink: string, settings: FileFrontmatterSettings, app: App): Promise<string> {
     try {
         // Extract text from PDF
+        console.log('Starting text extraction for file:', file.basename);
         const extractedText = await extractTextFromFile(app, file);
+        console.log('Extracted text length:', extractedText?.length || 0);
         
         if (!extractedText) {
             throw new Error('No text could be extracted from the file');
         }
 
         // Check if text extraction is enabled
+        console.log('Text extraction enabled:', settings.extractTextFromFiles);
         if (!settings.extractTextFromFiles) {
             return createBasicNoteContent(file, fileLink, settings);
         }
 
         // Generate keywords if API key is set
+        console.log('API Key in settings:', settings.openAIApiKey ? 'Present' : 'Missing');
         let keywords: string[] = [];
-        if (settings.corticalApiKey) {
-            keywords = await generateKeywords(extractedText, settings.corticalApiKey);
+        if (settings.openAIApiKey) {
+            keywords = await generateKeywords(
+                extractedText,
+                settings.openAIApiKey,
+                settings.maxKeywords,
+                settings.aiPrompt
+            );
+            console.log('Generated keywords:', keywords);
         }
         
         // Take only the specified number of keywords
         const selectedKeywords = keywords.slice(0, settings.maxKeywords);
+        console.log('Selected keywords:', selectedKeywords);
 
         // Replace template variables and add keywords as tags
-        const frontmatter = replaceTemplateVariables(settings.defaultTemplate, {
+        const templateVariables = {
             title: file.basename,
             date: formatDate(),
             tags: selectedKeywords.map(k => `"${k}"`).join(', ')
-        });
+        };
+        console.log('Template variables:', templateVariables);
+        
+        const frontmatter = replaceTemplateVariables(settings.defaultTemplate, templateVariables);
+        console.log('Generated frontmatter:', frontmatter);
         
         // Add extracted text and link to the original file
         return `${frontmatter}\n\n## ${file.basename}\n\n![[${fileLink}]]\n\n## Extracted Text\n\n${extractedText}\n`;
