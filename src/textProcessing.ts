@@ -89,24 +89,44 @@ export async function promptForManualTags(app: App): Promise<string[]> {
 
 async function retryWithDelay<T>(
     fn: () => Promise<T>,
-    retries: number = 3,
-    delay: number = 2000
+    retries: number = 2,
+    initialDelay: number = 5000
 ): Promise<T> {
-    try {
-        return await fn();
-    } catch (error) {
-        if (retries > 0 && error.message.includes('429')) {
-            await new Promise(resolve => setTimeout(resolve, delay));
-            return retryWithDelay(fn, retries - 1, delay * 2);
+    let lastError: Error | null = null;
+    let currentDelay = initialDelay;
+
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+            if (attempt > 0) {
+                console.log(`Retry attempt ${attempt} of ${retries}, waiting ${currentDelay}ms...`);
+                await delay(currentDelay);
+                // Show retry notification
+                new Notice(`Retrying connection to OpenAI (${attempt}/${retries})...`, 3000);
+                currentDelay *= 2; // Double the delay for each retry
+            }
+            return await fn();
+        } catch (error) {
+            lastError = error;
+            if (!error.message.includes('429')) {
+                throw error; // If it's not a rate limit error, throw immediately
+            }
+            if (attempt === retries) {
+                console.log('All retry attempts failed');
+                throw error;
+            }
         }
-        throw error;
     }
+    throw lastError!; // We know it's not null here because we would have thrown earlier if no error occurred
 }
 
 export async function generateKeywords(text: string, apiKey: string, maxKeywords: number, prompt: string, app: App): Promise<string[]> {
+    let loadingNotice: Notice | null = null;
     try {
         console.log('Generating keywords using OpenAI');
         console.log('API Key provided:', apiKey ? 'Yes' : 'No');
+        
+        // Show loading notification
+        loadingNotice = new Notice('Connecting to OpenAI... This may take up to 30 seconds', 30000);
         
         // Prepare the prompt by replacing variables
         const finalPrompt = prompt.replace('{{max_keywords}}', maxKeywords.toString());
@@ -117,8 +137,7 @@ export async function generateKeywords(text: string, apiKey: string, maxKeywords
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`,
-                    'OpenAI-Beta': 'assistants=v1'
+                    'Authorization': `Bearer ${apiKey}`
                 },
                 body: JSON.stringify({
                     model: "gpt-3.5-turbo",
@@ -151,19 +170,38 @@ export async function generateKeywords(text: string, apiKey: string, maxKeywords
         };
 
         try {
-            const response = await retryWithDelay(makeRequest);
+            const response = await retryWithDelay(makeRequest, 2, 5000); // Reduced retries, longer initial delay
+            // Clear the loading notice on success
+            if (loadingNotice) {
+                loadingNotice.hide();
+                loadingNotice = null;
+            }
+            
             const data = response.json as OpenAIResponse;
             const tags = data.choices[0]?.message?.content?.split(',')
                 .map(tag => tag.trim())
                 .filter(tag => tag.length > 0) || [];
                 
             console.log('Generated tags:', tags);
+            
+            // Show success notification
+            new Notice('Tags generated successfully!', 3000);
             return tags;
         } catch (error) {
+            // Clear the loading notice on error
+            if (loadingNotice) {
+                loadingNotice.hide();
+                loadingNotice = null;
+            }
+            
             if (error.message.includes('429')) {
-                new Notice('OpenAI rate limit reached. Would you like to enter tags manually?');
+                new Notice('OpenAI rate limit reached. Would you like to enter tags manually?', 5000);
                 try {
-                    return await promptForManualTags(app);
+                    const manualTags = await promptForManualTags(app);
+                    if (manualTags.length > 0) {
+                        new Notice('Tags added manually!', 3000);
+                    }
+                    return manualTags;
                 } catch (e) {
                     throw new Error('Note creation cancelled');
                 }
@@ -171,6 +209,12 @@ export async function generateKeywords(text: string, apiKey: string, maxKeywords
             throw error;
         }
     } catch (error) {
+        // Clear the loading notice if it's still showing
+        if (loadingNotice) {
+            loadingNotice.hide();
+            loadingNotice = null;
+        }
+        
         console.error('Error generating keywords:', error);
         if (!apiKey) {
             throw new Error('OpenAI API key is not set. Please add it in the plugin settings.');
