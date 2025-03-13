@@ -1,6 +1,7 @@
 import { App, Notice, TFile, TFolder, Vault } from 'obsidian';
 import { FileFrontmatterSettings } from './types';
 import { formatDate, replaceTemplateVariables } from './utils';
+import { extractTextFromFile, generateKeywords } from './textProcessing';
 
 /**
  * Creates a note alongside a PDF or other allowed file type
@@ -41,7 +42,7 @@ export async function createNoteForFile(
 
         // Create the note content with frontmatter and link to the original file
         const fileLink = app.metadataCache.fileToLinktext(file, '');
-        const noteContent = createNoteContent(file, fileLink, settings);
+        const noteContent = await createNoteContent(file, fileLink, settings, app);
 
         // Create the note
         await app.vault.create(notePath, noteContent);
@@ -69,13 +70,53 @@ function isAcceptedFileType(file: TFile, acceptedFileTypes: string[]): boolean {
 /**
  * Creates the content for the new note
  */
-function createNoteContent(file: TFile, fileLink: string, settings: FileFrontmatterSettings): string {
-    // Replace template variables
+async function createNoteContent(file: TFile, fileLink: string, settings: FileFrontmatterSettings, app: App): Promise<string> {
+    try {
+        // Extract text from PDF
+        const extractedText = await extractTextFromFile(app, file);
+        
+        if (!extractedText) {
+            throw new Error('No text could be extracted from the file');
+        }
+
+        // Check if text extraction is enabled
+        if (!settings.extractTextFromFiles) {
+            return createBasicNoteContent(file, fileLink, settings);
+        }
+
+        // Generate keywords if API key is set
+        let keywords: string[] = [];
+        if (settings.corticalApiKey) {
+            keywords = await generateKeywords(extractedText, settings.corticalApiKey);
+        }
+        
+        // Take only the specified number of keywords
+        const selectedKeywords = keywords.slice(0, settings.maxKeywords);
+
+        // Replace template variables and add keywords as tags
+        const frontmatter = replaceTemplateVariables(settings.defaultTemplate, {
+            title: file.basename,
+            date: formatDate(),
+            tags: selectedKeywords.map(k => `"${k}"`).join(', ')
+        });
+        
+        // Add extracted text and link to the original file
+        return `${frontmatter}\n\n## ${file.basename}\n\n![[${fileLink}]]\n\n## Extracted Text\n\n${extractedText}\n`;
+    } catch (error) {
+        console.error('Error creating note content:', error);
+        throw error;
+    }
+}
+
+/**
+ * Creates basic note content without text extraction or keyword generation
+ */
+function createBasicNoteContent(file: TFile, fileLink: string, settings: FileFrontmatterSettings): string {
     const frontmatter = replaceTemplateVariables(settings.defaultTemplate, {
         title: file.basename,
-        date: formatDate()
+        date: formatDate(),
+        tags: ''
     });
     
-    // Add a link to the original file
     return `${frontmatter}\n\n## ${file.basename}\n\n![[${fileLink}]]\n`;
 } 
