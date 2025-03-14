@@ -1,7 +1,7 @@
 {
-	"name": "file-frontmatter",
+	"name": "file-to-note",
 	"version": "0.1.0",
-	"description": "A plugin that converts files to markdown notes with frontmatter in Obsidian",
+	"description": "An Obsidian plugin that a creates notes with frontmatter and tags from files such as PDFs",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",

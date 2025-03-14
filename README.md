@@ -1,10 +1,10 @@
 # File to Note Plugin for Obsidian
 
-This plugin automatically creates markdown notes with frontmatter for your files in Obsidian.
+An Obsidian plugin that a creates notes with frontmatter and tags from files such as PDFs
 
 ## Features
 
-- Automatically creates a markdown note when you add a PDF or other supported file
+- Automatically creates a markdown note when you process a PDF or other supported file
 - Extracts text from PDFs using the Text Extractor plugin
 - Generates tags using OpenAI's GPT-3.5
 - Customizable frontmatter template

@@ -1,3 +1,0 @@
-- use text extractor to extract text for tag generation
-- create tags using some sort of AI
-- create tags using cortical.io
