@@ -1,10 +1,17 @@
 {
-  "defaultTemplate": "---\ntitle: {{title}}\ndate: {{date}}\ntags: {{tags}}\n---",
+  "defaultTemplate": "---\ntitle: {{title}}\ndate: {{date}}\ntags: [{{tags}}]\n---",
   "acceptedFileTypes": [
     "pdf"
   ],
-  "openAIApiKey": "your-openai-api-key-here",
-  "maxKeywords": 5,
+  "aiProvider": "openai",
+  "openAIApiKey": "",
+  "maxTags": 5,
   "extractTextFromFiles": true,
-  "aiPrompt": "Generate {{max_keywords}} relevant tags for this text. Return only the tags as a comma-separated list, without explanations or additional text."
+  "includeExtractedText": false,
+  "aiPrompt": "Generate {{max_tags}} relevant tags for this text. Return only the tags as a comma-separated list, without explanations or additional text.",
+  "notesDirectory": "Notes",
+  "notesPrefix": "",
+  "notesSuffix": " Notes",
+  "ollamaHost": "http://localhost:11434",
+  "ollamaModel": "llama2"
 } 

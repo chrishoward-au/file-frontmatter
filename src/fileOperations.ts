@@ -1,7 +1,7 @@
 import { App, Notice, TFile, TFolder, Vault } from 'obsidian';
 import { FileFrontmatterSettings } from './types';
 import { formatDate, replaceTemplateVariables } from './utils';
-import { extractTextFromFile, generateKeywords } from './textProcessing';
+import { extractTextFromFile, generateTags, promptForManualTags } from './textProcessing';
 
 /**
  * Creates a note alongside a PDF or other allowed file type
@@ -88,51 +88,59 @@ async function createNoteContent(file: TFile, fileLink: string, settings: FileFr
             return createBasicNoteContent(file, fileLink, settings);
         }
 
-        // Generate keywords if API key is set
-        console.log('API Key in settings:', settings.openAIApiKey ? 'Present' : 'Missing');
-        let keywords: string[] = [];
-        if (settings.openAIApiKey) {
+        // Generate tags if AI provider is configured
+        console.log('AI Provider:', settings.aiProvider);
+        let tags: string[] = [];
+        
+        const hasValidProvider = (settings.aiProvider === 'openai' && settings.openAIApiKey) ||
+                               (settings.aiProvider === 'gemini' && settings.googleClientId && settings.googleClientSecret) ||
+                               (settings.aiProvider === 'ollama');
+        
+        if (hasValidProvider) {
             try {
-                keywords = await generateKeywords(
-                    extractedText,
-                    settings.openAIApiKey,
-                    settings.maxKeywords,
-                    settings.aiPrompt,
-                    app
-                );
-                console.log('Generated keywords:', keywords);
+                tags = await generateTags(extractedText, settings, app);
+                console.log('Generated tags:', tags);
             } catch (error) {
                 if (error.message === 'Note creation cancelled') {
                     throw error;
                 }
                 // For other errors, we'll prompt for manual tags
-                console.error('Error generating keywords:', error);
+                console.error('Error generating tags:', error);
                 new Notice('Could not generate tags automatically. Would you like to enter them manually?');
                 try {
-                    keywords = await promptForManualTags(app);
+                    tags = await promptForManualTags(app);
                 } catch (e) {
                     throw new Error('Note creation cancelled');
                 }
             }
         }
         
-        // Take only the specified number of keywords
-        const selectedKeywords = keywords.slice(0, settings.maxKeywords);
-        console.log('Selected keywords:', selectedKeywords);
+        // Take only the specified number of tags and format them properly
+        const selectedTags = tags
+            .slice(0, settings.maxTags)
+            .map(tag => formatTag(tag));
+        console.log('Selected tags:', selectedTags);
 
-        // Replace template variables and add keywords as tags
+        // Replace template variables and add tags
         const templateVariables = {
             title: file.basename,
             date: formatDate(),
-            tags: selectedKeywords.map(k => `"${k}"`).join(', ')
+            tags: selectedTags.join(', ')
         };
         console.log('Template variables:', templateVariables);
         
         const frontmatter = replaceTemplateVariables(settings.defaultTemplate, templateVariables);
         console.log('Generated frontmatter:', frontmatter);
         
-        // Add extracted text and link to the original file
-        return `${frontmatter}\n\n## ${file.basename}\n\n![[${fileLink}]]\n\n## Extracted Text\n\n${extractedText}\n`;
+        // Create note content with or without extracted text based on settings
+        let noteContent = `${frontmatter}\n\n## ${file.basename}\n\n![[${fileLink}]]`;
+        
+        // Only include extracted text if the setting is enabled
+        if (settings.includeExtractedText) {
+            noteContent += `\n\n## Extracted Text\n\n${extractedText}`;
+        }
+        
+        return noteContent + '\n';
     } catch (error) {
         console.error('Error creating note content:', error);
         if (error.message === 'Note creation cancelled') {
@@ -151,14 +159,22 @@ function createBasicNoteContent(file: TFile, fileLink: string, settings: FileFro
     const frontmatter = replaceTemplateVariables(settings.defaultTemplate, {
         title: file.basename,
         date: formatDate(),
-        tags: ''
+        tags: '' // Empty tags for basic content
     });
     
     return `${frontmatter}\n\n## ${file.basename}\n\n![[${fileLink}]]\n`;
 }
 
-async function promptForManualTags(app: App): Promise<string[]> {
-    // Implementation of promptForManualTags function
-    // This is a placeholder and should be replaced with the actual implementation
-    return [];
+/**
+ * Format a tag to be valid in Obsidian
+ * - Remove spaces (replace with hyphens)
+ * - Remove quotes
+ * - Convert to lowercase
+ */
+function formatTag(tag: string): string {
+    return tag
+        .toLowerCase()
+        .replace(/"/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9-_]/g, ''); // Remove any other special characters
 } 

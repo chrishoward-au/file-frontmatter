@@ -1,6 +1,6 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
 import FileFrontmatterPlugin from './main';
-import { DEFAULT_SETTINGS } from './types';
+import { DEFAULT_SETTINGS, AIProvider } from './types';
 
 export class FileFrontmatterSettingTab extends PluginSettingTab {
 	plugin: FileFrontmatterPlugin;
@@ -75,34 +75,108 @@ export class FileFrontmatterSettingTab extends PluginSettingTab {
 					this.plugin.settings.extractTextFromFiles = value;
 					await this.plugin.saveSettings();
 				}));
-
-		new Setting(containerEl)
-			.setName('OpenAI API Key')
-			.setDesc('API key for OpenAI tag generation')
-			.addText(text => text
-				.setPlaceholder('Enter your OpenAI API key')
-				.setValue(this.plugin.settings.openAIApiKey)
-				.onChange(async (value) => {
-					this.plugin.settings.openAIApiKey = value;
-					await this.plugin.saveSettings();
-				}));
 				
 		new Setting(containerEl)
-			.setName('Maximum Tags')
-			.setDesc('Maximum number of tags to include')
-			.addSlider(slider => slider
-				.setLimits(1, 20, 1)
-				.setValue(this.plugin.settings.maxKeywords)
-				.setDynamicTooltip()
+			.setName('Include extracted text in note')
+			.setDesc('When enabled, the extracted text will be included in the created note. Disable to keep notes cleaner.')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.includeExtractedText)
 				.onChange(async (value) => {
-					this.plugin.settings.maxKeywords = value;
+					this.plugin.settings.includeExtractedText = value;
 					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('AI Provider')
+			.setDesc('Choose which AI service to use for generating tags')
+			.addDropdown(dropdown => dropdown
+				.addOption('openai', 'OpenAI')
+				.addOption('gemini', 'Google Gemini')
+				.addOption('ollama', 'Ollama (Local)')
+				.setValue(this.plugin.settings.aiProvider)
+				.onChange(async (value: AIProvider) => {
+					this.plugin.settings.aiProvider = value;
+					await this.plugin.saveSettings();
+					// Refresh the display to show/hide relevant settings
+					this.display();
+				}));
+
+		// Show provider-specific settings based on selection
+		if (this.plugin.settings.aiProvider === 'openai') {
+			new Setting(containerEl)
+				.setName('OpenAI API Key')
+				.setDesc('Enter your OpenAI API key to enable automatic tag generation.')
+				.addText(text => text
+					.setPlaceholder('Enter your OpenAI API key')
+					.setValue(this.plugin.settings.openAIApiKey)
+					.onChange(async (value) => {
+						this.plugin.settings.openAIApiKey = value;
+						await this.plugin.saveSettings();
+					}));
+		} else if (this.plugin.settings.aiProvider === 'gemini') {
+			new Setting(containerEl)
+				.setName('Google Client ID')
+				.setDesc('Enter your Google Cloud Client ID')
+				.addText(text => text
+					.setPlaceholder('Enter your Google Cloud Client ID')
+					.setValue(this.plugin.settings.googleClientId || '')
+					.onChange(async (value) => {
+						this.plugin.settings.googleClientId = value;
+						await this.plugin.saveSettings();
+					}));
+
+			new Setting(containerEl)
+				.setName('Google Client Secret')
+				.setDesc('Enter your Google Cloud Client Secret')
+				.addText(text => text
+					.setPlaceholder('Enter your Google Cloud Client Secret')
+					.setValue(this.plugin.settings.googleClientSecret || '')
+					.onChange(async (value) => {
+						this.plugin.settings.googleClientSecret = value;
+						await this.plugin.saveSettings();
+					}));
+		} else if (this.plugin.settings.aiProvider === 'ollama') {
+			new Setting(containerEl)
+				.setName('Ollama Host')
+				.setDesc('The URL where Ollama is running (default: http://localhost:11434)')
+				.addText(text => text
+					.setPlaceholder('http://localhost:11434')
+					.setValue(this.plugin.settings.ollamaHost)
+					.onChange(async (value) => {
+						this.plugin.settings.ollamaHost = value;
+						await this.plugin.saveSettings();
+					}));
+
+			new Setting(containerEl)
+				.setName('Ollama Model')
+				.setDesc('The model to use for tag generation (e.g., llama2, mistral, etc.)')
+				.addText(text => text
+					.setPlaceholder('llama2')
+					.setValue(this.plugin.settings.ollamaModel)
+					.onChange(async (value) => {
+						this.plugin.settings.ollamaModel = value;
+						await this.plugin.saveSettings();
+					}));
+		}
+
+		new Setting(containerEl)
+			.setName('Maximum Tags')
+			.setDesc('Maximum number of tags to generate for each file.')
+			.addText(text => text
+				.setPlaceholder('5')
+				.setValue(String(this.plugin.settings.maxTags))
+				.onChange(async (value) => {
+					const numValue = Number(value);
+					if (!isNaN(numValue) && numValue > 0) {
+						this.plugin.settings.maxTags = numValue;
+						await this.plugin.saveSettings();
+					}
 				}));
 
 		// Create a custom container for the AI prompt setting
 		const promptContainer = containerEl.createDiv();
 		promptContainer.createEl('h3', {text: 'AI Prompt'});
-		promptContainer.createEl('p', {text: 'Prompt for generating tags. Use {{max_keywords}} to insert the maximum number of tags.'});
+		promptContainer.createEl('p', {text: 'Prompt for generating tags. Use {{max_tags}} to insert the maximum number of tags.'});
 		const promptTextArea = promptContainer.createEl('textarea', {
 			attr: {
 				style: 'width: 100%; height: 80px; margin-bottom: 1em;'

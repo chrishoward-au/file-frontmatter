@@ -1,6 +1,6 @@
 import { TFile } from 'obsidian';
 
-export type AIProvider = 'openai' | 'gemini';
+export type AIProvider = 'openai' | 'gemini' | 'ollama';
 
 export interface FileFrontmatterSettings {
 	defaultTemplate: string;
@@ -9,9 +9,12 @@ export interface FileFrontmatterSettings {
 	openAIApiKey: string;
 	maxTags: number;
 	extractTextFromFiles: boolean;
+	includeExtractedText: boolean;
 	aiPrompt: string;
 	googleClientId?: string;
 	googleClientSecret?: string;
+	ollamaHost: string;
+	ollamaModel: string;
 }
 
 export const DEFAULT_SETTINGS: FileFrontmatterSettings = {
@@ -21,7 +24,10 @@ export const DEFAULT_SETTINGS: FileFrontmatterSettings = {
 	openAIApiKey: '',
 	maxTags: 5,
 	extractTextFromFiles: true,
-	aiPrompt: 'Generate {{max_tags}} relevant tags for this text. Return only the tags as a comma-separated list, without explanations or additional text.'
+	includeExtractedText: false,
+	aiPrompt: 'Generate {{max_tags}} relevant tags for this text. Return only the tags as a comma-separated list, without explanations or additional text.',
+	ollamaHost: 'http://localhost:11434',
+	ollamaModel: 'llama2'
 }
 
 export type TextExtractorApi = {

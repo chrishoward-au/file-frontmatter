@@ -1,5 +1,6 @@
 import { App, Notice, TFile, requestUrl, Modal, Setting } from 'obsidian';
-import { TextExtractorApi } from './types';
+import { TextExtractorApi, FileFrontmatterSettings } from './types';
+import { generateOllamaTags } from './ollamaApi';
 
 export async function extractTextFromFile(app: App, file: TFile): Promise<string | null> {
     // Get Text Extractor plugin API
@@ -45,7 +46,7 @@ class ManualTagsModal extends Modal {
         contentEl.empty();
 
         contentEl.createEl('h2', { text: 'Enter Tags Manually' });
-        contentEl.createEl('p', { text: 'Please enter tags separated by commas' });
+        contentEl.createEl('p', { text: 'Please enter tags separated by commas. Spaces will be replaced with hyphens.' });
 
         new Setting(contentEl)
             .setName('Tags')
@@ -119,95 +120,36 @@ async function retryWithDelay<T>(
     throw lastError!; // We know it's not null here because we would have thrown earlier if no error occurred
 }
 
-export async function generateKeywords(text: string, apiKey: string, maxKeywords: number, prompt: string, app: App): Promise<string[]> {
+export async function generateTags(text: string, settings: FileFrontmatterSettings, app: App): Promise<string[]> {
     let loadingNotice: Notice | null = null;
     try {
-        console.log('Generating keywords using OpenAI');
-        console.log('API Key provided:', apiKey ? 'Yes' : 'No');
+        const provider = settings.aiProvider;
+        console.log(`Generating tags using ${provider}`);
         
         // Show loading notification
-        loadingNotice = new Notice('Connecting to OpenAI... This may take up to 30 seconds', 30000);
+        loadingNotice = new Notice(`Connecting to ${provider}... This may take up to 30 seconds`, 30000);
         
-        // Prepare the prompt by replacing variables
-        const finalPrompt = prompt.replace('{{max_keywords}}', maxKeywords.toString());
+        let tags: string[] = [];
         
-        const makeRequest = async () => {
-            const response = await requestUrl({
-                url: 'https://api.openai.com/v1/chat/completions',
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
-                },
-                body: JSON.stringify({
-                    model: "gpt-3.5-turbo",
-                    messages: [
-                        {
-                            "role": "system",
-                            "content": "You are a helpful assistant that generates tags for documents. Return only the tags as requested, no other text."
-                        },
-                        {
-                            "role": "user",
-                            "content": `${finalPrompt}\n\nText: ${text.slice(0, 4000)}` // Limit text length to avoid token limits
-                        }
-                    ],
-                    temperature: 0.3 // Lower temperature for more focused responses
-                })
-            });
-
-            if (response.status !== 200) {
-                let errorMessage = 'API request failed';
-                try {
-                    const errorData = response.json;
-                    errorMessage = errorData.error?.message || `API error (${response.status})`;
-                } catch (e) {
-                    errorMessage = `API error (${response.status})`;
-                }
-                throw new Error(errorMessage);
-            }
-
-            return response;
-        };
-
-        try {
-            const response = await retryWithDelay(makeRequest, 2, 5000); // Reduced retries, longer initial delay
-            // Clear the loading notice on success
-            if (loadingNotice) {
-                loadingNotice.hide();
-                loadingNotice = null;
+        if (provider === 'openai') {
+            if (!settings.openAIApiKey) {
+                throw new Error('OpenAI API key is not set');
             }
             
-            const data = response.json as OpenAIResponse;
-            const tags = data.choices[0]?.message?.content?.split(',')
-                .map(tag => tag.trim())
-                .filter(tag => tag.length > 0) || [];
-                
-            console.log('Generated tags:', tags);
-            
-            // Show success notification
-            new Notice('Tags generated successfully!', 3000);
-            return tags;
-        } catch (error) {
-            // Clear the loading notice on error
-            if (loadingNotice) {
-                loadingNotice.hide();
-                loadingNotice = null;
-            }
-            
-            if (error.message.includes('429')) {
-                new Notice('OpenAI rate limit reached. Would you like to enter tags manually?', 5000);
-                try {
-                    const manualTags = await promptForManualTags(app);
-                    if (manualTags.length > 0) {
-                        new Notice('Tags added manually!', 3000);
-                    }
-                    return manualTags;
-                } catch (e) {
-                    throw new Error('Note creation cancelled');
-                }
-            }
-            throw error;
+            tags = await generateOpenAITags(text, settings.openAIApiKey, settings.maxTags, settings.aiPrompt);
+        } else if (provider === 'ollama') {
+            tags = await generateOllamaTags(text, settings);
         }
+
+        // Clear the loading notice on success
+        if (loadingNotice) {
+            loadingNotice.hide();
+            loadingNotice = null;
+        }
+
+        // Show success notification
+        new Notice('Tags generated successfully!', 3000);
+        return tags;
     } catch (error) {
         // Clear the loading notice if it's still showing
         if (loadingNotice) {
@@ -215,10 +157,69 @@ export async function generateKeywords(text: string, apiKey: string, maxKeywords
             loadingNotice = null;
         }
         
-        console.error('Error generating keywords:', error);
-        if (!apiKey) {
-            throw new Error('OpenAI API key is not set. Please add it in the plugin settings.');
+        console.error('Error generating tags:', error);
+        
+        if (error.message.includes('429')) {
+            new Notice('AI service rate limit reached. Would you like to enter tags manually?', 5000);
+            try {
+                const manualTags = await promptForManualTags(app);
+                if (manualTags.length > 0) {
+                    new Notice('Tags added manually!', 3000);
+                }
+                return manualTags;
+            } catch (e) {
+                throw new Error('Note creation cancelled');
+            }
         }
+        
         throw error;
     }
+}
+
+async function generateOpenAITags(text: string, apiKey: string, maxTags: number, prompt: string): Promise<string[]> {
+    const finalPrompt = prompt.replace('{{max_tags}}', maxTags.toString());
+    
+    const makeRequest = async () => {
+        const response = await requestUrl({
+            url: 'https://api.openai.com/v1/chat/completions',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: "gpt-3.5-turbo",
+                messages: [
+                    {
+                        "role": "system",
+                        "content": "You are a helpful assistant that generates tags for documents. Return only the tags as requested, no other text."
+                    },
+                    {
+                        "role": "user",
+                        "content": `${finalPrompt}\n\nText: ${text.slice(0, 4000)}` // Limit text length to avoid token limits
+                    }
+                ],
+                temperature: 0.3 // Lower temperature for more focused responses
+            })
+        });
+
+        if (response.status !== 200) {
+            let errorMessage = 'API request failed';
+            try {
+                const errorData = response.json;
+                errorMessage = errorData.error?.message || `API error (${response.status})`;
+            } catch (e) {
+                errorMessage = `API error (${response.status})`;
+            }
+            throw new Error(errorMessage);
+        }
+
+        return response;
+    };
+
+    const response = await retryWithDelay(makeRequest, 2, 5000);
+    const data = response.json as OpenAIResponse;
+    return data.choices[0]?.message?.content?.split(',')
+        .map(tag => tag.trim())
+        .filter(tag => tag.length > 0) || [];
 } 

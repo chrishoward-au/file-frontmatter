@@ -16,9 +16,14 @@ export function registerCommands(plugin: Plugin, settings: FileFrontmatterSettin
             // Get the active file
             const activeFile = plugin.app.workspace.getActiveFile();
             
-            // Check for API key first
-            if (!settings.openAIApiKey) {
-                new Notice('Please set your OpenAI API key in the plugin settings');
+            // Check for API key or local provider
+            const hasValidProvider = 
+                (settings.aiProvider === 'openai' && settings.openAIApiKey) ||
+                (settings.aiProvider === 'gemini' && settings.googleClientId && settings.googleClientSecret) ||
+                (settings.aiProvider === 'ollama');
+                
+            if (!hasValidProvider) {
+                new Notice(`Please configure your ${settings.aiProvider} settings`);
                 return;
             }
             
