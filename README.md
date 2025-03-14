@@ -1,4 +1,4 @@
-# File Frontmatter Plugin for Obsidian
+# File to Note Plugin for Obsidian
 
 This plugin automatically creates markdown notes with frontmatter for your files in Obsidian.
 
