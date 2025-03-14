@@ -118,7 +118,7 @@ async function createNoteContent(file: TFile, fileLink: string, settings: FileFr
         // Take only the specified number of tags and format them properly
         const selectedTags = tags
             .slice(0, settings.maxTags)
-            .map(tag => formatTag(tag, settings));
+            .map(tag => formatTag(tag));
         console.log('Selected tags:', selectedTags);
 
         // Replace template variables and add tags
@@ -170,23 +170,11 @@ function createBasicNoteContent(file: TFile, fileLink: string, settings: FileFro
  * - Remove spaces (replace with hyphens)
  * - Remove quotes
  * - Convert to lowercase
- * - Limit to the maximum number of words per tag
  */
-function formatTag(tag: string, settings: FileFrontmatterSettings): string {
-    // First, clean the tag
-    const cleanedTag = tag
+function formatTag(tag: string): string {
+    return tag
         .toLowerCase()
         .replace(/"/g, '')
-        .trim();
-    
-    // Split into words
-    const words = cleanedTag.split(/\s+/);
-    
-    // Limit to the maximum number of words per tag
-    const limitedWords = words.slice(0, settings.maxWordsPerTag);
-    
-    // Join with hyphens and remove any other special characters
-    return limitedWords
-        .join('-')
+        .replace(/\s+/g, '-')
         .replace(/[^a-z0-9-_]/g, ''); // Remove any other special characters
 } 

@@ -26,7 +26,7 @@ export const DEFAULT_SETTINGS: FileFrontmatterSettings = {
 	maxTags: 5,
 	extractTextFromFiles: true,
 	includeExtractedText: false,
-	aiPrompt: 'Generate {{max_tags}} relevant tags for this text. Return only the tags as a comma-separated list, without explanations or additional text.',
+	aiPrompt: 'Generate {{max_tags}} relevant tags for this text. Each tag should have no more than {{max_words}} words. Return only the tags as a comma-separated list, without explanations or additional text.',
 	ollamaHost: 'http://localhost:11434',
 	ollamaModel: 'llama2',
 	maxWordsPerTag: 2

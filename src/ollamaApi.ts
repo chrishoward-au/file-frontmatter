@@ -18,7 +18,9 @@ export async function generateOllamaTags(
         console.log('Ollama model:', settings.ollamaModel);
         
         // Prepare the prompt by replacing variables
-        const finalPrompt = settings.aiPrompt.replace('{{max_tags}}', settings.maxTags.toString());
+        const finalPrompt = settings.aiPrompt
+            .replace('{{max_tags}}', settings.maxTags.toString())
+            .replace('{{max_words}}', settings.maxWordsPerTag.toString());
         
         // Make request to Ollama API
         const response = await requestUrl({

@@ -129,6 +129,11 @@ export async function generateTags(text: string, settings: FileFrontmatterSettin
         // Show loading notification
         loadingNotice = new Notice(`Connecting to ${provider}... This may take up to 30 seconds`, 30000);
         
+        // Prepare the prompt by replacing variables
+        const finalPrompt = settings.aiPrompt
+            .replace('{{max_tags}}', settings.maxTags.toString())
+            .replace('{{max_words}}', settings.maxWordsPerTag.toString());
+        
         let tags: string[] = [];
         
         if (provider === 'openai') {
@@ -136,7 +141,7 @@ export async function generateTags(text: string, settings: FileFrontmatterSettin
                 throw new Error('OpenAI API key is not set');
             }
             
-            tags = await generateOpenAITags(text, settings.openAIApiKey, settings.maxTags, settings.aiPrompt);
+            tags = await generateOpenAITags(text, settings.openAIApiKey, settings.maxTags, finalPrompt);
         } else if (provider === 'ollama') {
             tags = await generateOllamaTags(text, settings);
         }
@@ -177,8 +182,6 @@ export async function generateTags(text: string, settings: FileFrontmatterSettin
 }
 
 async function generateOpenAITags(text: string, apiKey: string, maxTags: number, prompt: string): Promise<string[]> {
-    const finalPrompt = prompt.replace('{{max_tags}}', maxTags.toString());
-    
     const makeRequest = async () => {
         const response = await requestUrl({
             url: 'https://api.openai.com/v1/chat/completions',
@@ -196,7 +199,7 @@ async function generateOpenAITags(text: string, apiKey: string, maxTags: number,
                     },
                     {
                         "role": "user",
-                        "content": `${finalPrompt}\n\nText: ${text.slice(0, 4000)}` // Limit text length to avoid token limits
+                        "content": `${prompt}\n\nText: ${text.slice(0, 4000)}` // Limit text length to avoid token limits
                     }
                 ],
                 temperature: 0.3 // Lower temperature for more focused responses
