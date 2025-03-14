@@ -15,6 +15,7 @@ export interface FileFrontmatterSettings {
 	googleClientSecret?: string;
 	ollamaHost: string;
 	ollamaModel: string;
+	maxWordsPerTag: number;
 }
 
 export const DEFAULT_SETTINGS: FileFrontmatterSettings = {
@@ -27,7 +28,8 @@ export const DEFAULT_SETTINGS: FileFrontmatterSettings = {
 	includeExtractedText: false,
 	aiPrompt: 'Generate {{max_tags}} relevant tags for this text. Return only the tags as a comma-separated list, without explanations or additional text.',
 	ollamaHost: 'http://localhost:11434',
-	ollamaModel: 'llama2'
+	ollamaModel: 'llama2',
+	maxWordsPerTag: 2
 }
 
 export type TextExtractorApi = {

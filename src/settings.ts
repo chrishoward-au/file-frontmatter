@@ -173,6 +173,22 @@ export class FileFrontmatterSettingTab extends PluginSettingTab {
 					}
 				}));
 
+		new Setting(containerEl)
+			.setName('Max Words Per Tag')
+			.setDesc('Maximum number of words allowed per tag.')
+			.addDropdown(dropdown => dropdown
+				.addOption('1', '1')
+				.addOption('2', '2')
+				.addOption('3', '3')
+				.setValue(String(this.plugin.settings.maxWordsPerTag))
+				.onChange(async (value) => {
+					const numValue = Number(value);
+					if (!isNaN(numValue) && [1, 2, 3].includes(numValue)) {
+						this.plugin.settings.maxWordsPerTag = numValue;
+						await this.plugin.saveSettings();
+					}
+				}));
+
 		// Create a custom container for the AI prompt setting
 		const promptContainer = containerEl.createDiv();
 		promptContainer.createEl('h3', {text: 'AI Prompt'});

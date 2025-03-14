@@ -8,6 +8,7 @@
   "maxTags": 5,
   "extractTextFromFiles": true,
   "includeExtractedText": false,
+  "maxWordsPerTag": 2,
   "aiPrompt": "Generate {{max_tags}} relevant tags for this text. Return only the tags as a comma-separated list, without explanations or additional text.",
   "notesDirectory": "Notes",
   "notesPrefix": "",
