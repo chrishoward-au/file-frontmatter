@@ -15,7 +15,16 @@ export async function extractTextFromFile(app: App, file: TFile): Promise<string
         throw new Error('File cannot be processed by Text Extractor');
     }
 
-    return await textExtractor.extractText(file);
+    // Extract text from file
+    const extractedText = await textExtractor.extractText(file);
+    
+    // Strip URLs from the extracted text
+    if (extractedText) {
+        console.log('Stripping URLs from extracted text');
+        return stripUrls(extractedText);
+    }
+    
+    return extractedText;
 }
 
 interface OpenAIResponse {
@@ -130,10 +139,6 @@ export async function generateTags(text: string, settings: FileFrontmatterSettin
         // Show loading notification
         loadingNotice = new Notice(`Connecting to ${provider}... This may take up to 30 seconds`, 30000);
         
-        // Strip URLs from the text
-        const cleanedText = stripUrls(text);
-        console.log('Stripped URLs from text');
-        
         // Prepare the prompt by replacing variables
         const finalPrompt = settings.aiPrompt
             .replace('{{max_tags}}', settings.maxTags.toString())
@@ -146,9 +151,9 @@ export async function generateTags(text: string, settings: FileFrontmatterSettin
                 throw new Error('OpenAI API key is not set');
             }
             
-            tags = await generateOpenAITags(cleanedText, settings.openAIApiKey, settings.maxTags, finalPrompt, settings.maxWordsPerTag);
+            tags = await generateOpenAITags(text, settings.openAIApiKey, settings.maxTags, finalPrompt, settings.maxWordsPerTag);
         } else if (provider === 'ollama') {
-            tags = await generateOllamaTags(cleanedText, settings);
+            tags = await generateOllamaTags(text, settings);
         }
 
         // Clear the loading notice on success
