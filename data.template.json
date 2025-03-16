@@ -1,18 +1,18 @@
 {
-  "defaultTemplate": "---\ntitle: {{title}}\ndate: {{date}}\ntags: [{{tags}}]\n---",
+  "defaultTemplate": "---\ntitle: {{title}}\ndate: {{date}}\ntags: [{{filetype}} {{tags}}]\n---",
   "acceptedFileTypes": [
     "pdf"
   ],
-  "aiProvider": "openai",
+  "aiProvider": "ollama",
   "openAIApiKey": "",
-  "maxTags": 5,
+  "maxTags": 10,
   "extractTextFromFiles": true,
   "includeExtractedText": false,
-  "maxWordsPerTag": 2,
-  "aiPrompt": "Generate {{max_tags}} relevant tags for this text. Each tag should have no more than {{max_words}} words. Return only the tags as a comma-separated list, without explanations or additional text.",
+  "maxWordsPerTag": 1,
+  "aiPrompt": "Generate {{max_tags}} relevant tags for this text. Each tag should have no more than {{max_words}} words and joined with a dash. Return only the tags as a comma-separated list, without explanations, hashes or additional text. Ignore existing tags when in the text generating, but append those tags to response",
   "notesDirectory": "Notes",
   "notesPrefix": "",
   "notesSuffix": " Notes",
   "ollamaHost": "http://localhost:11434",
-  "ollamaModel": "llama2"
+  "ollamaModel": ""
 } 

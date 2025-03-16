@@ -1,6 +1,6 @@
 import { App, Notice, TFile, TFolder, Vault } from 'obsidian';
-import { FileFrontmatterSettings } from './types';
-import { formatDate, replaceTemplateVariables } from './utils';
+import { FileFrontmatterSettings, TagCaseFormat } from './types';
+import { formatDate, replaceTemplateVariables, formatTag } from './utils';
 import { extractTextFromFile, generateTags, promptForManualTags } from './textProcessing';
 
 /**
@@ -117,14 +117,14 @@ async function createNoteContent(file: TFile, fileLink: string, settings: FileFr
         
         // Take only the specified number of tags and format them properly
         const selectedTags = tags
-            .slice(0, settings.maxTags)
-            .map(tag => formatTag(tag));
+            .map(tag => formatTag(tag, settings.tagCaseFormat));
         console.log('Selected tags:', selectedTags);
 
         // Replace template variables and add tags
         const templateVariables = {
             title: file.basename,
             date: formatDate(),
+            filetype: file.extension,
             tags: selectedTags.join(', ')
         };
         console.log('Template variables:', templateVariables);
@@ -163,18 +163,4 @@ function createBasicNoteContent(file: TFile, fileLink: string, settings: FileFro
     });
     
     return `${frontmatter}\n\n## ${file.basename}\n\n![[${fileLink}]]\n`;
-}
-
-/**
- * Format a tag to be valid in Obsidian
- * - Remove spaces (replace with hyphens)
- * - Remove quotes
- * - Convert to lowercase
- */
-function formatTag(tag: string): string {
-    return tag
-        .toLowerCase()
-        .replace(/"/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/[^a-z0-9-_]/g, ''); // Remove any other special characters
 } 

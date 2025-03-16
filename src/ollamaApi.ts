@@ -22,6 +22,8 @@ export async function generateOllamaTags(
             .replace('{{max_tags}}', settings.maxTags.toString())
             .replace('{{max_words}}', settings.maxWordsPerTag.toString());
         
+            console.log('AI PROMPT',finalPrompt);
+
         // Make request to Ollama API
         const response = await requestUrl({
             url: `${settings.ollamaHost}/api/generate`,
@@ -38,6 +40,8 @@ export async function generateOllamaTags(
                 }
             })
         });
+
+        console.log('response',response);
 
         if (response.status !== 200) {
             throw new Error(`Ollama API error: ${response.status}`);

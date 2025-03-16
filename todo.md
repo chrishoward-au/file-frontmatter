@@ -1,0 +1,5 @@
+- check if similar tag exists and use it
+- ✅ make convert to lowercase an option
+- fix tags returned as a single string, or multiple but some with more than one tag.
+- - concatenate array then split
+- ✅ if a markdown file, generate tags

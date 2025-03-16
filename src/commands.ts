@@ -1,6 +1,8 @@
-import { App, Notice, Plugin, TFile } from 'obsidian';
+import { App, Notice, Plugin, TFile, Modal, Setting } from 'obsidian';
 import { createNoteForFile } from './fileOperations';
 import { FileFrontmatterSettings } from './types';
+import { generateTags } from './textProcessing';
+import { formatTag } from './utils';
 
 /**
  * Registers all plugin commands
@@ -34,7 +36,8 @@ export function registerCommands(plugin: Plugin, settings: FileFrontmatterSettin
             }
             
             if (activeFile.extension === 'md') {
-                new Notice('Cannot create a note for a markdown file');
+                // For markdown files, ask if the user wants to generate tags
+                handleMarkdownFile(plugin.app, activeFile, settings);
                 return;
             }
             
@@ -53,4 +56,120 @@ export function registerCommands(plugin: Plugin, settings: FileFrontmatterSettin
  */
 async function handleCreateNoteCommand(app: App, file: TFile, settings: FileFrontmatterSettings): Promise<void> {
     await createNoteForFile(app, file, settings);
+}
+
+/**
+ * Modal to confirm tag generation for markdown files
+ */
+class MarkdownTagsModal extends Modal {
+    onYes: () => void;
+    onNo: () => void;
+
+    constructor(app: App, onYes: () => void, onNo: () => void) {
+        super(app);
+        this.onYes = onYes;
+        this.onNo = onNo;
+    }
+
+    onOpen() {
+        const { contentEl } = this;
+        contentEl.empty();
+
+        contentEl.createEl('h2', { text: 'Generate Tags' });
+        contentEl.createEl('p', { text: 'Would you like to generate tags for this markdown file?' });
+
+        new Setting(contentEl)
+            .addButton(btn => btn
+                .setButtonText('Yes')
+                .setCta()
+                .onClick(() => {
+                    this.onYes();
+                    this.close();
+                }))
+            .addButton(btn => btn
+                .setButtonText('No')
+                .onClick(() => {
+                    this.onNo();
+                    this.close();
+                }));
+    }
+
+    onClose() {
+        const { contentEl } = this;
+        contentEl.empty();
+    }
+}
+
+/**
+ * Handles markdown files by asking if the user wants to generate tags
+ */
+function handleMarkdownFile(app: App, file: TFile, settings: FileFrontmatterSettings): void {
+    new MarkdownTagsModal(
+        app,
+        // Yes callback
+        async () => {
+            try {
+                // Read the file content
+                const fileContent = await app.vault.read(file);
+                
+                // Generate tags
+                const loadingNotice = new Notice(`Connecting to ${settings.aiProvider}... This may take up to 30 seconds`, 30000);
+                
+                try {
+                    const tags = await generateTags(fileContent, settings, app);
+                    loadingNotice.hide();
+                    
+                    if (tags && tags.length > 0) {
+                        // Format tags with the selected case format
+                        const formattedTags = tags
+                            .map(tag => formatTag(tag, settings.tagCaseFormat))
+                            .map(tag => `"${tag}"`)
+                            .join(', ');
+                        
+                        // Check if file already has frontmatter
+                        let newContent: string;
+                        if (fileContent.startsWith('---\n')) {
+                            // File has frontmatter, update or add tags
+                            const frontmatterEnd = fileContent.indexOf('---\n', 4);
+                            if (frontmatterEnd !== -1) {
+                                const frontmatter = fileContent.substring(0, frontmatterEnd);
+                                const restOfContent = fileContent.substring(frontmatterEnd);
+                                
+                                if (frontmatter.includes('tags:')) {
+                                    // Replace existing tags
+                                    newContent = frontmatter.replace(/tags:.*(\r?\n)/i, `tags: [${formattedTags}]$1`) + restOfContent;
+                                } else {
+                                    // Add tags before the end of frontmatter
+                                    newContent = frontmatter + `tags: [${formattedTags}]\n` + restOfContent;
+                                }
+                            } else {
+                                // Malformed frontmatter, add new one
+                                newContent = `---\ntags: [${formattedTags}]\n---\n\n${fileContent}`;
+                            }
+                        } else {
+                            // No frontmatter, add new one
+                            newContent = `---\ntags: [${formattedTags}]\n---\n\n${fileContent}`;
+                        }
+                        
+                        // Save the updated content
+                        await app.vault.modify(file, newContent);
+                        new Notice(`Tags added to ${file.basename}`);
+                    } else {
+                        new Notice('No tags were generated');
+                    }
+                } catch (error) {
+                    loadingNotice.hide();
+                    console.error('Error generating tags:', error);
+                    new Notice(`Error generating tags: ${error.message}`);
+                }
+            } catch (error) {
+                console.error('Error reading file:', error);
+                new Notice(`Error reading file: ${error.message}`);
+            }
+        },
+        // No callback
+        () => {
+            new Notice('Tag generation cancelled');
+        }
+    ).open();
 } 

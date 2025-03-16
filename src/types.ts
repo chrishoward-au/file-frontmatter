@@ -1,6 +1,7 @@
 import { TFile } from 'obsidian';
 
 export type AIProvider = 'openai' | 'gemini' | 'ollama';
+export type TagCaseFormat = 'lowercase' | 'uppercase' | 'titlecase' | 'retain';
 
 export interface FileFrontmatterSettings {
 	defaultTemplate: string;
@@ -16,6 +17,7 @@ export interface FileFrontmatterSettings {
 	ollamaHost: string;
 	ollamaModel: string;
 	maxWordsPerTag: number;
+	tagCaseFormat: TagCaseFormat;
 }
 
 export const DEFAULT_SETTINGS: FileFrontmatterSettings = {
@@ -29,7 +31,8 @@ export const DEFAULT_SETTINGS: FileFrontmatterSettings = {
 	aiPrompt: 'Generate {{max_tags}} relevant tags for this text. Each tag should have no more than {{max_words}} words. Return only the tags as a comma-separated list, without explanations or additional text.',
 	ollamaHost: 'http://localhost:11434',
 	ollamaModel: 'llama2',
-	maxWordsPerTag: 2
+	maxWordsPerTag: 2,
+	tagCaseFormat: 'lowercase'
 }
 
 export type TextExtractorApi = {

@@ -1,6 +1,6 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
 import FileFrontmatterPlugin from './main';
-import { DEFAULT_SETTINGS, AIProvider } from './types';
+import { DEFAULT_SETTINGS, AIProvider, TagCaseFormat } from './types';
 
 export class FileFrontmatterSettingTab extends PluginSettingTab {
 	plugin: FileFrontmatterPlugin;
@@ -174,20 +174,50 @@ export class FileFrontmatterSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName('Max Words Per Tag')
-			.setDesc('Maximum number of words allowed per tag.')
-			.addDropdown(dropdown => dropdown
-				.addOption('1', '1')
-				.addOption('2', '2')
-				.addOption('3', '3')
-				.setValue(String(this.plugin.settings.maxWordsPerTag))
+			.setName('Maximum words per tag')
+			.setDesc('The maximum number of words allowed in each tag')
+			.addSlider(slider => slider
+				.setLimits(1, 5, 1)
+				.setValue(this.plugin.settings.maxWordsPerTag)
+				.setDynamicTooltip()
 				.onChange(async (value) => {
-					const numValue = Number(value);
-					if (!isNaN(numValue) && [1, 2, 3].includes(numValue)) {
-						this.plugin.settings.maxWordsPerTag = numValue;
+					this.plugin.settings.maxWordsPerTag = value;
+					await this.plugin.saveSettings();
+				}))
+			.addExtraButton(button => {
+				button
+					.setIcon('reset')
+					.setTooltip('Reset to default')
+					.onClick(async () => {
+						this.plugin.settings.maxWordsPerTag = DEFAULT_SETTINGS.maxWordsPerTag;
 						await this.plugin.saveSettings();
-					}
-				}));
+						this.display();
+					});
+			});
+			
+		new Setting(containerEl)
+			.setName('Tag case format')
+			.setDesc('Choose how to format the case of generated tags')
+			.addDropdown(dropdown => dropdown
+				.addOption('lowercase', 'Lowercase (e.g., "tag-example")')
+				.addOption('uppercase', 'Uppercase (e.g., "TAG-EXAMPLE")')
+				.addOption('titlecase', 'Title Case (e.g., "Tag-Example")')
+				.addOption('retain', 'Retain Original Case')
+				.setValue(this.plugin.settings.tagCaseFormat)
+				.onChange(async (value: TagCaseFormat) => {
+					this.plugin.settings.tagCaseFormat = value;
+					await this.plugin.saveSettings();
+				}))
+			.addExtraButton(button => {
+				button
+					.setIcon('reset')
+					.setTooltip('Reset to default')
+					.onClick(async () => {
+						this.plugin.settings.tagCaseFormat = DEFAULT_SETTINGS.tagCaseFormat;
+						await this.plugin.saveSettings();
+						this.display();
+					});
+			});
 
 		// Create a custom container for the AI prompt setting
 		const promptContainer = containerEl.createDiv();
