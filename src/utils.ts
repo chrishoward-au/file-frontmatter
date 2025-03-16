@@ -21,6 +21,49 @@ export function replaceTemplateVariables(template: string, variables: Record<str
 }
 
 /**
+ * Count words in a string
+ * @param str The string to count words in
+ * @returns The number of words
+ */
+export function countWords(str: string): number {
+    return str.trim().split(/\s+/).length;
+}
+
+/**
+ * Check if a tag is valid based on the maximum words per tag setting
+ * Special handling for one-word requests to allow up to two words
+ * @param tag The tag to check
+ * @param maxWordsPerTag The maximum words per tag setting
+ * @returns True if the tag is valid, false otherwise
+ */
+export function isValidTag(tag: string, maxWordsPerTag: number): boolean {
+    const wordCount = countWords(tag);
+    
+    // Special handling for one-word requests
+    if (maxWordsPerTag === 1) {
+        return wordCount <= 2; // Allow up to two words for one-word requests
+    }
+    
+    return wordCount <= maxWordsPerTag;
+}
+
+/**
+ * Filter out erroneous tags based on word count
+ * @param tags Array of tags
+ * @param maxWordsPerTag Maximum words per tag setting
+ * @returns Object containing valid tags and a flag indicating if any tags were erroneous
+ */
+export function filterErroneousTags(tags: string[], maxWordsPerTag: number): { 
+    validTags: string[], 
+    hasErroneousTags: boolean 
+} {
+    const validTags = tags.filter(tag => isValidTag(tag, maxWordsPerTag));
+    const hasErroneousTags = validTags.length < tags.length;
+    
+    return { validTags, hasErroneousTags };
+}
+
+/**
  * Format a tag to be valid in Obsidian
  * - Remove spaces (replace with hyphens)
  * - Remove quotes

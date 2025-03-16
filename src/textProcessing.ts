@@ -1,6 +1,7 @@
 import { App, Notice, TFile, requestUrl, Modal, Setting } from 'obsidian';
 import { TextExtractorApi, FileFrontmatterSettings } from './types';
 import { generateOllamaTags } from './ollamaApi';
+import { filterErroneousTags } from './utils';
 
 export async function extractTextFromFile(app: App, file: TFile): Promise<string | null> {
     // Get Text Extractor plugin API
@@ -141,7 +142,7 @@ export async function generateTags(text: string, settings: FileFrontmatterSettin
                 throw new Error('OpenAI API key is not set');
             }
             
-            tags = await generateOpenAITags(text, settings.openAIApiKey, settings.maxTags, finalPrompt);
+            tags = await generateOpenAITags(text, settings.openAIApiKey, settings.maxTags, finalPrompt, settings.maxWordsPerTag);
         } else if (provider === 'ollama') {
             tags = await generateOllamaTags(text, settings);
         }
@@ -181,7 +182,63 @@ export async function generateTags(text: string, settings: FileFrontmatterSettin
     }
 }
 
-async function generateOpenAITags(text: string, apiKey: string, maxTags: number, prompt: string): Promise<string[]> {
+async function generateOpenAITags(
+    text: string, 
+    apiKey: string, 
+    maxTags: number, 
+    prompt: string,
+    maxWordsPerTag: number
+): Promise<string[]> {
+    // First attempt
+    let tags = await makeOpenAIRequest(text, apiKey, prompt);
+    console.log('First attempt tags:', tags);
+    
+    // Check for erroneous tags
+    let { validTags, hasErroneousTags } = filterErroneousTags(tags, maxWordsPerTag);
+    
+    // If erroneous tags found, retry once
+    if (hasErroneousTags) {
+        console.log('Erroneous tags found, retrying...');
+        
+        // Create a more explicit prompt for the retry
+        const retryPrompt = 
+            `Generate exactly ${maxTags} relevant tags for this text. 
+            Each tag MUST have no more than ${maxWordsPerTag} word${maxWordsPerTag > 1 ? 's' : ''}.
+            Return ONLY the tags as a comma-separated list (e.g., "tag1, tag2, tag3").
+            Do not include explanations, hashes, or additional text.
+            Do not concatenate tags with hyphens or other characters.
+            Do not number the tags.`;
+        
+        // Retry
+        tags = await makeOpenAIRequest(text, apiKey, retryPrompt);
+        console.log('Retry attempt tags:', tags);
+        
+        // Check again for erroneous tags
+        const retryResult = filterErroneousTags(tags, maxWordsPerTag);
+        validTags = retryResult.validTags;
+        
+        // If still has erroneous tags, notify user
+        if (retryResult.hasErroneousTags) {
+            console.log('Still found erroneous tags after retry, using valid tags only');
+            new Notice('Some tags were too long and have been skipped', 3000);
+        }
+    }
+    
+    // Limit to the maximum number of tags
+    const finalTags = validTags.slice(0, maxTags);
+    console.log('Final tags:', finalTags);
+    
+    return finalTags;
+}
+
+/**
+ * Make a request to the OpenAI API
+ */
+async function makeOpenAIRequest(
+    text: string,
+    apiKey: string,
+    prompt: string
+): Promise<string[]> {
     const makeRequest = async () => {
         const response = await requestUrl({
             url: 'https://api.openai.com/v1/chat/completions',
@@ -222,6 +279,7 @@ async function generateOpenAITags(text: string, apiKey: string, maxTags: number,
 
     const response = await retryWithDelay(makeRequest, 2, 5000);
     const data = response.json as OpenAIResponse;
+    
     return data.choices[0]?.message?.content?.split(',')
         .map(tag => tag.trim())
         .filter(tag => tag.length > 0) || [];
