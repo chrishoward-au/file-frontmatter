@@ -1,7 +1,7 @@
 import { App, Notice, TFile, requestUrl, Modal, Setting } from 'obsidian';
 import { TextExtractorApi, FileFrontmatterSettings } from './types';
 import { generateOllamaTags } from './ollamaApi';
-import { filterErroneousTags } from './utils';
+import { filterErroneousTags, stripUrls } from './utils';
 
 export async function extractTextFromFile(app: App, file: TFile): Promise<string | null> {
     // Get Text Extractor plugin API
@@ -130,6 +130,10 @@ export async function generateTags(text: string, settings: FileFrontmatterSettin
         // Show loading notification
         loadingNotice = new Notice(`Connecting to ${provider}... This may take up to 30 seconds`, 30000);
         
+        // Strip URLs from the text
+        const cleanedText = stripUrls(text);
+        console.log('Stripped URLs from text');
+        
         // Prepare the prompt by replacing variables
         const finalPrompt = settings.aiPrompt
             .replace('{{max_tags}}', settings.maxTags.toString())
@@ -142,9 +146,9 @@ export async function generateTags(text: string, settings: FileFrontmatterSettin
                 throw new Error('OpenAI API key is not set');
             }
             
-            tags = await generateOpenAITags(text, settings.openAIApiKey, settings.maxTags, finalPrompt, settings.maxWordsPerTag);
+            tags = await generateOpenAITags(cleanedText, settings.openAIApiKey, settings.maxTags, finalPrompt, settings.maxWordsPerTag);
         } else if (provider === 'ollama') {
-            tags = await generateOllamaTags(text, settings);
+            tags = await generateOllamaTags(cleanedText, settings);
         }
 
         // Clear the loading notice on success

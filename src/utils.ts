@@ -21,6 +21,22 @@ export function replaceTemplateVariables(template: string, variables: Record<str
 }
 
 /**
+ * Strip URLs from text
+ * @param text The text to strip URLs from
+ * @returns The text with URLs removed
+ */
+export function stripUrls(text: string): string {
+    if (!text) return '';
+    
+    // Regular expression to match URLs
+    // This matches http, https, ftp URLs and also www.example.com style URLs
+    const urlRegex = /(https?:\/\/|www\.)[^\s]+(\.[^\s]+){1,}[^\s.,;:?!)"']/gi;
+    
+    // Replace URLs with empty string
+    return text.replace(urlRegex, ' ');
+}
+
+/**
  * Count words in a string
  * @param str The string to count words in
  * @returns The number of words

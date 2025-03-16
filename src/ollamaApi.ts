@@ -96,7 +96,6 @@ async function makeOllamaRequest(
         })
     });
 
-    console.log('response', response);
 
     if (response.status !== 200) {
         throw new Error(`Ollama API error: ${response.status}`);
@@ -110,7 +109,6 @@ async function makeOllamaRequest(
         .map(tag => tag.trim())
         .filter(tag => tag.length > 0);
         
-    console.log('Generated tags from Ollama:', tags);
     
     return tags;
 } 
