@@ -118,8 +118,7 @@ async function createNoteContent(file: TFile, fileLink: string, settings: FileFr
         const templateVariables = {
             title: file.basename,
             date: formatDate(),
-            filetype: file.extension,
-            tags: selectedTags.join(', ')
+            tags: '- '+selectedTags.sort().join('\n- ')+'\n- '+file.extension
         };
         console.log('Template variables:', templateVariables);
         
