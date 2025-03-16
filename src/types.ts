@@ -17,6 +17,7 @@ export interface FileFrontmatterSettings {
 	ollamaModel: string;
 	maxWordsPerTag: number;
 	tagCaseFormat: TagCaseFormat;
+	hotkey?: string;
 }
 
 export const DEFAULT_SETTINGS: FileFrontmatterSettings = {
@@ -30,7 +31,8 @@ export const DEFAULT_SETTINGS: FileFrontmatterSettings = {
 	ollamaHost: 'http://localhost:11434',
 	ollamaModel: 'llama2',
 	maxWordsPerTag: 2,
-	tagCaseFormat: 'lowercase'
+	tagCaseFormat: 'lowercase',
+	hotkey: ''
 }
 
 export type TextExtractorApi = {

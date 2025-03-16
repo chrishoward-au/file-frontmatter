@@ -14,7 +14,6 @@ export async function processTagsWithRetry(
     settings: FileFrontmatterSettings,
     retryFunction: () => Promise<string[]>
 ): Promise<string[]> {
-    console.log('First attempt tags:', rawTags);
     
     // Check for erroneous tags
     let { validTags, hasErroneousTags } = filterErroneousTags(rawTags, settings.maxWordsPerTag);

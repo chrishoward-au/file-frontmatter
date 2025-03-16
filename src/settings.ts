@@ -38,6 +38,28 @@ export class FileFrontmatterSettingTab extends PluginSettingTab {
 			await this.plugin.saveSettings();
 		});
 
+		// Add hotkey setting
+		new Setting(containerEl)
+			.setName('Hotkey')
+			.setDesc('Set a hotkey for creating a note from a file. Note: After changing this, you need to restart Obsidian for it to take effect.')
+			.addText(text => text
+				.setPlaceholder('Ctrl+Shift+F')
+				.setValue(this.plugin.settings.hotkey || '')
+				.onChange(async (value) => {
+					this.plugin.settings.hotkey = value;
+					await this.plugin.saveSettings();
+				}))
+			.addExtraButton(button => {
+				button
+					.setIcon('reset')
+					.setTooltip('Reset to default')
+					.onClick(async () => {
+						this.plugin.settings.hotkey = DEFAULT_SETTINGS.hotkey;
+						await this.plugin.saveSettings();
+						this.display();
+					});
+			});
+
 		new Setting(containerEl)
 			.setName('Accepted file types')
 			.setDesc('Comma-separated list of file extensions (without dots) that can have frontmatter added. Example: pdf,jpg,png')
