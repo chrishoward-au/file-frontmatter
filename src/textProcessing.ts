@@ -2,6 +2,7 @@ import { App, Notice, TFile, requestUrl, Modal, Setting } from 'obsidian';
 import { TextExtractorApi, FileFrontmatterSettings } from './types';
 import { generateOllamaTags } from './ollamaApi';
 import { filterErroneousTags, stripUrls } from './utils';
+import { processTagsWithRetry, createRetryPrompt } from './tagProcessing';
 
 export async function extractTextFromFile(app: App, file: TFile): Promise<string | null> {
     // For markdown files, read the content directly
@@ -207,46 +208,18 @@ async function generateOpenAITags(
     maxWordsPerTag: number
 ): Promise<string[]> {
     // First attempt
-    let tags = await makeOpenAIRequest(text, apiKey, prompt);
-    console.log('First attempt tags:', tags);
+    const rawTags = await makeOpenAIRequest(text, apiKey, prompt);
     
-    // Check for erroneous tags
-    let { validTags, hasErroneousTags } = filterErroneousTags(tags, maxWordsPerTag);
-    
-    console.log(validTags,hasErroneousTags);
-    // If erroneous tags found, retry once
-    if (hasErroneousTags) {
-        console.log('Erroneous tags found, retrying...',tags);
-        
-        // Create a more explicit prompt for the retry
-        const retryPrompt = 
-            `Generate exactly ${maxTags} relevant tags for this text. 
-            Each tag MUST have no more than ${maxWordsPerTag} word${maxWordsPerTag > 1 ? 's' : ''}.
-            Return ONLY the tags as a comma-separated list (e.g., "tag1, tag2, tag3").
-            Do not include explanations, hashes, or additional text.
-            Do not concatenate tags with hyphens or other characters.
-            Do not number the tags.`;
-        
-        // Retry
-        tags = await makeOpenAIRequest(text, apiKey, retryPrompt);
-        console.log('Retry attempt tags:', tags);
-        
-        // Check again for erroneous tags
-        const retryResult = filterErroneousTags(tags, maxWordsPerTag);
-        validTags = retryResult.validTags;
-        
-        // If still has erroneous tags, notify user
-        if (retryResult.hasErroneousTags) {
-            console.log('Still found erroneous tags after retry, using valid tags only');
-            new Notice('Some tags were too long and have been skipped', 3000);
+    // Process tags with retry logic
+    return await processTagsWithRetry(
+        rawTags,
+        { maxTags, maxWordsPerTag } as FileFrontmatterSettings,
+        // Retry function
+        async () => {
+            const retryPrompt = createRetryPrompt(maxTags, maxWordsPerTag);
+            return await makeOpenAIRequest(text, apiKey, retryPrompt);
         }
-    }
-    
-    // Limit to the maximum number of tags
-    const finalTags = validTags.slice(0, maxTags);
-    console.log('Final tags:', finalTags);
-    
-    return finalTags;
+    );
 }
 
 /**

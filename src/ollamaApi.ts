@@ -1,6 +1,6 @@
-import { Notice, requestUrl } from 'obsidian';
+import { requestUrl } from 'obsidian';
 import { FileFrontmatterSettings } from './types';
-import { filterErroneousTags } from './utils';
+import { processTagsWithRetry, createRetryPrompt } from './tagProcessing';
 
 interface OllamaResponse {
     response: string;
@@ -26,45 +26,18 @@ export async function generateOllamaTags(
         console.log('AI PROMPT', finalPrompt);
 
         // First attempt
-        let tags = await makeOllamaRequest(settings.ollamaHost, settings.ollamaModel, finalPrompt, text);
-        console.log('First attempt tags:', tags);
+        const rawTags = await makeOllamaRequest(settings.ollamaHost, settings.ollamaModel, finalPrompt, text);
         
-        // Check for erroneous tags
-        let { validTags, hasErroneousTags } = filterErroneousTags(tags, settings.maxWordsPerTag);
-        
-        // If erroneous tags found, retry once
-        if (hasErroneousTags) {
-            console.log('Erroneous tags found, retrying...');
-            
-            // Create a more explicit prompt for the retry
-            const retryPrompt = 
-                `Generate exactly ${settings.maxTags} relevant tags for this text. 
-                Each tag MUST have no more than ${settings.maxWordsPerTag} word${settings.maxWordsPerTag > 1 ? 's' : ''}.
-                Return ONLY the tags as a comma-separated list (e.g., "tag1, tag2, tag3").
-                Do not include explanations, hashes, or additional text.
-                Do not concatenate tags with hyphens or other characters.
-                Do not number the tags.`;
-            
-            // Retry
-            tags = await makeOllamaRequest(settings.ollamaHost, settings.ollamaModel, retryPrompt, text);
-            console.log('Retry attempt tags:', tags);
-            
-            // Check again for erroneous tags
-            const retryResult = filterErroneousTags(tags, settings.maxWordsPerTag);
-            validTags = retryResult.validTags;
-            
-            // If still has erroneous tags, notify user
-            if (retryResult.hasErroneousTags) {
-                console.log('Still found erroneous tags after retry, using valid tags only');
-                new Notice('Some tags were too long and have been skipped', 3000);
+        // Process tags with retry logic
+        return await processTagsWithRetry(
+            rawTags,
+            settings,
+            // Retry function
+            async () => {
+                const retryPrompt = createRetryPrompt(settings.maxTags, settings.maxWordsPerTag);
+                return await makeOllamaRequest(settings.ollamaHost, settings.ollamaModel, retryPrompt, text);
             }
-        }
-        
-        // Limit to the maximum number of tags
-        const finalTags = validTags.slice(0, settings.maxTags);
-        console.log('Final tags:', finalTags);
-        
-        return finalTags;
+        );
     } catch (error) {
         console.error('Error generating tags with Ollama:', error);
         throw error;
@@ -96,7 +69,6 @@ async function makeOllamaRequest(
         })
     });
 
-
     if (response.status !== 200) {
         throw new Error(`Ollama API error: ${response.status}`);
     }
@@ -108,7 +80,6 @@ async function makeOllamaRequest(
         .split(',')
         .map(tag => tag.trim())
         .filter(tag => tag.length > 0);
-        
     
     return tags;
 } 
