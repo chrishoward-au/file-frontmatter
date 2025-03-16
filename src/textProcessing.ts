@@ -4,15 +4,23 @@ import { generateOllamaTags } from './ollamaApi';
 import { filterErroneousTags, stripUrls } from './utils';
 
 export async function extractTextFromFile(app: App, file: TFile): Promise<string | null> {
+    // For markdown files, read the content directly
+    if (file.extension === 'md') {
+        console.log('Reading markdown file content directly');
+        const content = await app.vault.read(file);
+        return stripUrls(content);
+    }
+    
+    // For other file types, use the Text Extractor plugin
     // Get Text Extractor plugin API
     const textExtractor = (app as any).plugins?.plugins?.['text-extractor']?.api as TextExtractorApi | undefined;
     
     if (!textExtractor) {
-        throw new Error('Text Extractor plugin is not installed or enabled');
+        throw new Error('Text Extractor plugin is not installed or enabled. It is required for extracting text from non-markdown files.');
     }
 
     if (!textExtractor.canFileBeExtracted(file.path)) {
-        throw new Error('File cannot be processed by Text Extractor');
+        throw new Error(`File type '${file.extension}' cannot be processed by Text Extractor.`);
     }
 
     // Extract text from file

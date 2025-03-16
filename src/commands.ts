@@ -46,6 +46,13 @@ export function registerCommands(plugin: Plugin, settings: FileFrontmatterSettin
                 return;
             }
             
+            // Check if Text Extractor plugin is installed and active for non-markdown files
+            const textExtractorPlugin = (plugin.app as any).plugins?.plugins?.['text-extractor'];
+            if (!textExtractorPlugin) {
+                new Notice('Text Extractor plugin is not installed or enabled. It is required for extracting text from non-markdown files.');
+                return;
+            }
+            
             handleCreateNoteCommand(plugin.app, activeFile, settings);
         }
     });
