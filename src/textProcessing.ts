@@ -1,40 +1,10 @@
 import { App, Notice, TFile, requestUrl, Modal, Setting } from 'obsidian';
-import { TextExtractorApi, FileFrontmatterSettings } from './types';
+import { FileFrontmatterSettings } from './types';
 import { generateOllamaTags } from './ollamaApi';
-import { filterErroneousTags, stripUrls } from './utils';
+import { stripUrls } from './utils';
 import { processTagsWithRetry, createRetryPrompt } from './tagProcessing';
 
-export async function extractTextFromFile(app: App, file: TFile): Promise<string | null> {
-    // For markdown files, read the content directly
-    if (file.extension === 'md') {
-        console.log('Reading markdown file content directly');
-        const content = await app.vault.read(file);
-        return stripUrls(content);
-    }
-    
-    // For other file types, use the Text Extractor plugin
-    // Get Text Extractor plugin API
-    const textExtractor = (app as any).plugins?.plugins?.['text-extractor']?.api as TextExtractorApi | undefined;
-    
-    if (!textExtractor) {
-        throw new Error('Text Extractor plugin is not installed or enabled. It is required for extracting text from non-markdown files.');
-    }
-
-    if (!textExtractor.canFileBeExtracted(file.path)) {
-        throw new Error(`File type '${file.extension}' cannot be processed by Text Extractor.`);
-    }
-
-    // Extract text from file
-    const extractedText = await textExtractor.extractText(file);
-    
-    // Strip URLs from the extracted text
-    if (extractedText) {
-        console.log('Stripping URLs from extracted text');
-        return stripUrls(extractedText);
-    }
-    
-    return extractedText;
-}
+// extractTextFromFile function has been moved to fileHandler.ts
 
 interface OpenAIResponse {
     choices: Array<{

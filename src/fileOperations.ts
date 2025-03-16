@@ -1,7 +1,8 @@
 import { App, Notice, TFile, TFolder, Vault } from 'obsidian';
 import { FileFrontmatterSettings, TagCaseFormat } from './types';
 import { formatDate, replaceTemplateVariables, formatTag } from './utils';
-import { extractTextFromFile, generateTags, promptForManualTags } from './textProcessing';
+import { generateTags, promptForManualTags } from './textProcessing';
+import { extractTextFromFile, isFileTypeSupported } from './fileHandler';
 
 /**
  * Creates a note alongside a PDF or other allowed file type
@@ -17,7 +18,7 @@ export async function createNoteForFile(
 ): Promise<void> {
     try {
         // Check if the file type is accepted
-        if (!isAcceptedFileType(file, settings.acceptedFileTypes)) {
+        if (!isFileTypeSupported(file, settings.acceptedFileTypes)) {
             new Notice(`File type '${file.extension}' is not in the list of accepted file types`);
             return;
         }
@@ -58,13 +59,6 @@ export async function createNoteForFile(
         console.error('Error creating note:', error);
         new Notice(`Error creating note: ${error.message}`);
     }
-}
-
-/**
- * Check if a file's extension is in the list of accepted file types
- */
-function isAcceptedFileType(file: TFile, acceptedFileTypes: string[]): boolean {
-    return acceptedFileTypes.includes(file.extension.toLowerCase());
 }
 
 /**

@@ -1,7 +1,10 @@
 {
-  "defaultTemplate": "---\ntitle: {{title}}\ndate: {{date}}\ntags: [{{filetype}} {{tags}}]\n---",
+  "defaultTemplate": "---\ntitle: {{title}}\ndate: {{date}}\ntags: \n{{tags}}\n---",
   "acceptedFileTypes": [
-    "pdf"
+    "pdf",
+    "jpg",
+    "jpeg",
+    "png"
   ],
   "aiProvider": "ollama",
   "openAIApiKey": "",
