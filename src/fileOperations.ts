@@ -82,12 +82,6 @@ async function createNoteContent(file: TFile, fileLink: string, settings: FileFr
             throw new Error('No text could be extracted from the file');
         }
 
-        // Check if text extraction is enabled
-        console.log('Text extraction enabled:', settings.extractTextFromFiles);
-        if (!settings.extractTextFromFiles) {
-            return createBasicNoteContent(file, fileLink, settings);
-        }
-
         // Generate tags if AI provider is configured
         console.log('AI Provider:', settings.aiProvider);
         let tags: string[] = [];
@@ -150,17 +144,4 @@ async function createNoteContent(file: TFile, fileLink: string, settings: FileFr
         }
         throw error;
     }
-}
-
-/**
- * Creates basic note content without text extraction or keyword generation
- */
-function createBasicNoteContent(file: TFile, fileLink: string, settings: FileFrontmatterSettings): string {
-    const frontmatter = replaceTemplateVariables(settings.defaultTemplate, {
-        title: file.basename,
-        date: formatDate(),
-        tags: '' // Empty tags for basic content
-    });
-    
-    return `${frontmatter}\n\n## ${file.basename}\n\n![[${fileLink}]]\n`;
 } 

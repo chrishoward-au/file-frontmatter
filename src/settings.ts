@@ -67,16 +67,6 @@ export class FileFrontmatterSettingTab extends PluginSettingTab {
 		containerEl.createEl('h3', {text: 'Text Extraction & Tag Generation'});
 		
 		new Setting(containerEl)
-			.setName('Extract text from files')
-			.setDesc('When enabled, the plugin will extract text from PDFs and other supported files using the Text Extractor plugin')
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.extractTextFromFiles)
-				.onChange(async (value) => {
-					this.plugin.settings.extractTextFromFiles = value;
-					await this.plugin.saveSettings();
-				}));
-				
-		new Setting(containerEl)
 			.setName('Include extracted text in note')
 			.setDesc('When enabled, the extracted text will be included in the created note. Disable to keep notes cleaner.')
 			.addToggle(toggle => toggle
