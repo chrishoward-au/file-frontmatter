@@ -1,20 +1,18 @@
 import { App, Notice, TFile } from 'obsidian';
 import { FileFrontmatterSettings, AIProvider } from './types';
 import { generateOllamaTags } from './ollamaApi';
-import { stripUrls, makeApiRequest, retryWithDelay, delay } from './utils';
-import { processTagsWithRetry, createRetryPrompt } from './tagProcessing';
+import { generateOpenAITags } from './openAiApi';
+import { generateGeminiTags } from './geminiApi';
+import { stripUrls } from './utils';
 import { promptForManualTags } from './modals';
 
-// extractTextFromFile function has been moved to fileHandler.ts
-
-interface OpenAIResponse {
-    choices: Array<{
-        message: {
-            content: string;
-        };
-    }>;
-}
-
+/**
+ * Generates tags for text content using the configured AI provider
+ * @param text Text content to generate tags for
+ * @param settings Plugin settings
+ * @param app Obsidian app instance
+ * @returns Array of generated tags
+ */
 export async function generateTags(text: string, settings: FileFrontmatterSettings, app: App): Promise<string[]> {
     let loadingNotice: Notice | null = null;
     try {
@@ -43,8 +41,8 @@ export async function generateTags(text: string, settings: FileFrontmatterSettin
                 tags = await generateOllamaTags(text, settings);
                 break;
             case 'gemini':
-                // Placeholder for future Gemini implementation
-                throw new Error('Gemini AI provider is not yet implemented');
+                tags = await generateGeminiTags(text, settings);
+                break;
             default:
                 throw new Error(`Unknown AI provider: ${provider}`);
         }
@@ -82,67 +80,4 @@ export async function generateTags(text: string, settings: FileFrontmatterSettin
         
         throw error;
     }
-}
-
-async function generateOpenAITags(
-    text: string, 
-    apiKey: string, 
-    maxTags: number, 
-    prompt: string,
-    maxWordsPerTag: number
-): Promise<string[]> {
-    // First attempt
-    const rawTags = await makeOpenAIRequest(text, apiKey, prompt);
-    
-    // Process tags with retry logic
-    return await processTagsWithRetry(
-        rawTags,
-        { maxTags, maxWordsPerTag } as FileFrontmatterSettings,
-        // Retry function
-        async () => {
-            const retryPrompt = createRetryPrompt(maxTags, maxWordsPerTag);
-            return await makeOpenAIRequest(text, apiKey, retryPrompt);
-        }
-    );
-}
-
-/**
- * Make a request to the OpenAI API
- */
-async function makeOpenAIRequest(
-    text: string,
-    apiKey: string,
-    prompt: string
-): Promise<string[]> {
-    const makeRequest = async () => {
-        return await makeApiRequest({
-            url: 'https://api.openai.com/v1/chat/completions',
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-                model: "gpt-3.5-turbo",
-                messages: [
-                    {
-                        "role": "system",
-                        "content": "You are a helpful assistant that generates tags for documents. Return only the tags as requested, no other text."
-                    },
-                    {
-                        "role": "user",
-                        "content": `${prompt}\n\nText: ${text.slice(0, 4000)}` // Limit text length to avoid token limits
-                    }
-                ],
-                temperature: 0.3 // Lower temperature for more focused responses
-            })
-        }, 'OpenAI');
-    };
-
-    const response = await retryWithDelay(makeRequest, 2, 5000);
-    const data = response.json as OpenAIResponse;
-    
-    return data.choices[0]?.message?.content?.split(',')
-        .map(tag => tag.trim())
-        .filter(tag => tag.length > 0) || [];
 } 
