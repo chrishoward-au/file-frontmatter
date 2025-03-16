@@ -1,4 +1,4 @@
-import { App, Notice, Plugin, TFile, Modal, Setting, Hotkey, Modifier } from 'obsidian';
+import { App, Notice, Plugin, TFile, Modal, Setting } from 'obsidian';
 import { createNoteForFile } from './fileOperations';
 import { FileFrontmatterSettings } from './types';
 import { generateTags } from './textProcessing';
@@ -14,7 +14,6 @@ export function registerCommands(plugin: Plugin, settings: FileFrontmatterSettin
     plugin.addCommand({
         id: 'create-note-for-file',
         name: 'Create note for selected file',
-        hotkeys: settings.hotkey ? [{ modifiers: getModifiers(settings.hotkey), key: getKey(settings.hotkey) }] : [],
         callback: () => {
             // Get the active file
             const activeFile = plugin.app.workspace.getActiveFile();
@@ -180,36 +179,4 @@ function handleMarkdownFile(app: App, file: TFile, settings: FileFrontmatterSett
             new Notice('Tag generation cancelled');
         }
     ).open();
-}
-
-/**
- * Extract modifiers from a hotkey string (e.g., "Ctrl+Shift+F" -> ["Mod", "Shift"])
- */
-function getModifiers(hotkeyStr: string): Modifier[] {
-    const modifiers: Modifier[] = [];
-    const parts = hotkeyStr.split('+');
-    
-    // Map common modifier keys to Obsidian's expected format
-    for (let i = 0; i < parts.length - 1; i++) {
-        const mod = parts[i].trim().toLowerCase();
-        if (mod === 'ctrl' || mod === 'cmd' || mod === 'command') {
-            modifiers.push('Mod');
-        } else if (mod === 'shift') {
-            modifiers.push('Shift');
-        } else if (mod === 'alt' || mod === 'option') {
-            modifiers.push('Alt');
-        } else if (mod === 'meta' || mod === 'win' || mod === 'windows') {
-            modifiers.push('Meta');
-        }
-    }
-    
-    return modifiers;
-}
-
-/**
- * Extract the key from a hotkey string (e.g., "Ctrl+Shift+F" -> "F")
- */
-function getKey(hotkeyStr: string): string {
-    const parts = hotkeyStr.split('+');
-    return parts[parts.length - 1].trim();
 } 

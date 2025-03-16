@@ -38,27 +38,13 @@ export class FileFrontmatterSettingTab extends PluginSettingTab {
 			await this.plugin.saveSettings();
 		});
 
-		// Add hotkey setting
-		new Setting(containerEl)
-			.setName('Hotkey')
-			.setDesc('Set a hotkey for creating a note from a file. Note: After changing this, you need to restart Obsidian for it to take effect.')
-			.addText(text => text
-				.setPlaceholder('Ctrl+Shift+F')
-				.setValue(this.plugin.settings.hotkey || '')
-				.onChange(async (value) => {
-					this.plugin.settings.hotkey = value;
-					await this.plugin.saveSettings();
-				}))
-			.addExtraButton(button => {
-				button
-					.setIcon('reset')
-					.setTooltip('Reset to default')
-					.onClick(async () => {
-						this.plugin.settings.hotkey = DEFAULT_SETTINGS.hotkey;
-						await this.plugin.saveSettings();
-						this.display();
-					});
-			});
+		// Note about hotkeys
+		const hotkeyInfo = containerEl.createDiv({ cls: 'setting-item' });
+		hotkeyInfo.createEl('div', { cls: 'setting-item-info', text: 'Hotkeys' });
+		const hotkeyDesc = hotkeyInfo.createEl('div', { cls: 'setting-item-description' });
+		hotkeyDesc.createEl('p', { 
+			text: 'You can set a hotkey for creating a note from a file in Obsidian Settings → Hotkeys → search for "File to Note: Create note for selected file"'
+		});
 
 		new Setting(containerEl)
 			.setName('Accepted file types')
