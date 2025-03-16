@@ -42,7 +42,8 @@ export function stripUrls(text: string): string {
  * @returns The number of words
  */
 export function countWords(str: string): number {
-    return str.trim().split(/\s+/).length;
+    const split = str.trim().replace(/[-_]+/g, ' ').split(/\s+/g);
+    return split.length;
 }
 
 /**
@@ -54,7 +55,6 @@ export function countWords(str: string): number {
  */
 export function isValidTag(tag: string, maxWordsPerTag: number): boolean {
     const wordCount = countWords(tag);
-    
     // Special handling for one-word requests
     if (maxWordsPerTag === 1) {
         return wordCount <= 2; // Allow up to two words for one-word requests

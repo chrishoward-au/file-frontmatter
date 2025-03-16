@@ -213,9 +213,10 @@ async function generateOpenAITags(
     // Check for erroneous tags
     let { validTags, hasErroneousTags } = filterErroneousTags(tags, maxWordsPerTag);
     
+    console.log(validTags,hasErroneousTags);
     // If erroneous tags found, retry once
     if (hasErroneousTags) {
-        console.log('Erroneous tags found, retrying...');
+        console.log('Erroneous tags found, retrying...',tags);
         
         // Create a more explicit prompt for the retry
         const retryPrompt = 
