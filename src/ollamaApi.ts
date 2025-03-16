@@ -1,6 +1,7 @@
 import { requestUrl } from 'obsidian';
 import { FileFrontmatterSettings } from './types';
 import { processTagsWithRetry, createRetryPrompt } from './tagProcessing';
+import { makeApiRequest } from './utils';
 
 interface OllamaResponse {
     response: string;
@@ -53,7 +54,7 @@ async function makeOllamaRequest(
     prompt: string,
     text: string
 ): Promise<string[]> {
-    const response = await requestUrl({
+    const response = await makeApiRequest({
         url: `${host}/api/generate`,
         method: 'POST',
         headers: {
@@ -67,11 +68,7 @@ async function makeOllamaRequest(
                 temperature: 0.3
             }
         })
-    });
-
-    if (response.status !== 200) {
-        throw new Error(`Ollama API error: ${response.status}`);
-    }
+    }, 'Ollama');
 
     const data = response.json as OllamaResponse;
     

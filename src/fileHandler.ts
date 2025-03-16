@@ -65,11 +65,16 @@ export async function extractTextFromFile(app: App, file: TFile): Promise<string
  * @returns True if the AI provider is properly configured, false otherwise
  */
 export function isAIProviderConfigured(settings: FileFrontmatterSettings): boolean {
-    return (
-        (settings.aiProvider === 'openai' && !!settings.openAIApiKey) ||
-        (settings.aiProvider === 'gemini' && !!settings.googleClientId && !!settings.googleClientSecret) ||
-        (settings.aiProvider === 'ollama')
-    );
+    switch (settings.aiProvider) {
+        case 'openai':
+            return !!settings.openAIApiKey;
+        case 'gemini':
+            return !!settings.googleClientId && !!settings.googleClientSecret;
+        case 'ollama':
+            return true; // Ollama doesn't need API keys
+        default:
+            return false;
+    }
 }
 
 /**

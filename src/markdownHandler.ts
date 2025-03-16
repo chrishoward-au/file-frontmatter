@@ -14,27 +14,18 @@ export async function handleMarkdownTagGeneration(app: App, file: TFile, setting
         // Read the file content
         const fileContent = await app.vault.read(file);
         
-        // Generate tags
-        const loadingNotice = new Notice(`Connecting to ${settings.aiProvider}... This may take up to 30 seconds`, 30000);
+        // Generate tags - generateTags already handles loading notices
+        const tags = await generateTags(fileContent, settings, app);
         
-        try {
-            const tags = await generateTags(fileContent, settings, app);
-            loadingNotice.hide();
-            
-            if (tags && tags.length > 0) {
-                // Update the file with the generated tags
-                await updateFileWithTags(app, file, fileContent, tags, settings.tagCaseFormat);
-            } else {
-                new Notice('No tags were generated');
-            }
-        } catch (error) {
-            loadingNotice.hide();
-            console.error('Error generating tags:', error);
-            new Notice(`Error generating tags: ${error.message}`);
+        if (tags && tags.length > 0) {
+            // Update the file with the generated tags
+            await updateFileWithTags(app, file, fileContent, tags, settings.tagCaseFormat);
+        } else {
+            new Notice('No tags were generated');
         }
     } catch (error) {
-        console.error('Error reading file:', error);
-        new Notice(`Error reading file: ${error.message}`);
+        console.error('Error handling markdown tag generation:', error);
+        new Notice(`Error: ${error.message}`);
     }
 }
 

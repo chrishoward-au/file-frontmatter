@@ -1,8 +1,9 @@
-import { App, Notice, TFile, requestUrl, Modal, Setting } from 'obsidian';
-import { FileFrontmatterSettings } from './types';
+import { App, Notice, TFile } from 'obsidian';
+import { FileFrontmatterSettings, AIProvider } from './types';
 import { generateOllamaTags } from './ollamaApi';
-import { stripUrls } from './utils';
+import { stripUrls, makeApiRequest, retryWithDelay, delay } from './utils';
 import { processTagsWithRetry, createRetryPrompt } from './tagProcessing';
+import { promptForManualTags } from './modals';
 
 // extractTextFromFile function has been moved to fileHandler.ts
 
@@ -12,101 +13,6 @@ interface OpenAIResponse {
             content: string;
         };
     }>;
-}
-
-// Add delay function for rate limiting
-function delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-class ManualTagsModal extends Modal {
-    tags: string = '';
-    onSubmit: (result: string[]) => void;
-    onCancel: () => void;
-
-    constructor(app: App, onSubmit: (result: string[]) => void, onCancel: () => void) {
-        super(app);
-        this.onSubmit = onSubmit;
-        this.onCancel = onCancel;
-    }
-
-    onOpen() {
-        const { contentEl } = this;
-        contentEl.empty();
-
-        contentEl.createEl('h2', { text: 'Enter Tags Manually' });
-        contentEl.createEl('p', { text: 'Please enter tags separated by commas. Spaces will be replaced with hyphens.' });
-
-        new Setting(contentEl)
-            .setName('Tags')
-            .addText(text => text
-                .setPlaceholder('tag1, tag2, tag3')
-                .onChange(value => {
-                    this.tags = value;
-                }));
-
-        new Setting(contentEl)
-            .addButton(btn => btn
-                .setButtonText('Submit')
-                .setCta()
-                .onClick(() => {
-                    const tagList = this.tags
-                        .split(',')
-                        .map(tag => tag.trim())
-                        .filter(tag => tag.length > 0);
-                    this.onSubmit(tagList);
-                    this.close();
-                }))
-            .addButton(btn => btn
-                .setButtonText('Cancel')
-                .onClick(() => {
-                    this.onCancel();
-                    this.close();
-                }));
-    }
-
-    onClose() {
-        const { contentEl } = this;
-        contentEl.empty();
-    }
-}
-
-export async function promptForManualTags(app: App): Promise<string[]> {
-    return new Promise((resolve, reject) => {
-        new ManualTagsModal(app, resolve, reject).open();
-    });
-}
-
-async function retryWithDelay<T>(
-    fn: () => Promise<T>,
-    retries: number = 2,
-    initialDelay: number = 5000
-): Promise<T> {
-    let lastError: Error | null = null;
-    let currentDelay = initialDelay;
-
-    for (let attempt = 0; attempt <= retries; attempt++) {
-        try {
-            if (attempt > 0) {
-                console.log(`Retry attempt ${attempt} of ${retries}, waiting ${currentDelay}ms...`);
-                await delay(currentDelay);
-                // Show retry notification
-                new Notice(`Retrying connection to OpenAI (${attempt}/${retries})...`, 3000);
-                currentDelay *= 2; // Double the delay for each retry
-            }
-            return await fn();
-        } catch (error) {
-            lastError = error;
-            if (!error.message.includes('429')) {
-                throw error; // If it's not a rate limit error, throw immediately
-            }
-            if (attempt === retries) {
-                console.log('All retry attempts failed');
-                throw error;
-            }
-        }
-    }
-    throw lastError!; // We know it's not null here because we would have thrown earlier if no error occurred
 }
 
 export async function generateTags(text: string, settings: FileFrontmatterSettings, app: App): Promise<string[]> {
@@ -125,14 +31,22 @@ export async function generateTags(text: string, settings: FileFrontmatterSettin
         
         let tags: string[] = [];
         
-        if (provider === 'openai') {
-            if (!settings.openAIApiKey) {
-                throw new Error('OpenAI API key is not set');
-            }
-            
-            tags = await generateOpenAITags(text, settings.openAIApiKey, settings.maxTags, finalPrompt, settings.maxWordsPerTag);
-        } else if (provider === 'ollama') {
-            tags = await generateOllamaTags(text, settings);
+        // Generate tags based on the selected provider
+        switch(provider) {
+            case 'openai':
+                if (!settings.openAIApiKey) {
+                    throw new Error('OpenAI API key is not set');
+                }
+                tags = await generateOpenAITags(text, settings.openAIApiKey, settings.maxTags, finalPrompt, settings.maxWordsPerTag);
+                break;
+            case 'ollama':
+                tags = await generateOllamaTags(text, settings);
+                break;
+            case 'gemini':
+                // Placeholder for future Gemini implementation
+                throw new Error('Gemini AI provider is not yet implemented');
+            default:
+                throw new Error(`Unknown AI provider: ${provider}`);
         }
 
         // Clear the loading notice on success
@@ -201,7 +115,7 @@ async function makeOpenAIRequest(
     prompt: string
 ): Promise<string[]> {
     const makeRequest = async () => {
-        const response = await requestUrl({
+        return await makeApiRequest({
             url: 'https://api.openai.com/v1/chat/completions',
             method: 'POST',
             headers: {
@@ -222,20 +136,7 @@ async function makeOpenAIRequest(
                 ],
                 temperature: 0.3 // Lower temperature for more focused responses
             })
-        });
-
-        if (response.status !== 200) {
-            let errorMessage = 'API request failed';
-            try {
-                const errorData = response.json;
-                errorMessage = errorData.error?.message || `API error (${response.status})`;
-            } catch (e) {
-                errorMessage = `API error (${response.status})`;
-            }
-            throw new Error(errorMessage);
-        }
-
-        return response;
+        }, 'OpenAI');
     };
 
     const response = await retryWithDelay(makeRequest, 2, 5000);

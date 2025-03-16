@@ -1,4 +1,5 @@
 import { TagCaseFormat } from './types';
+import { requestUrl, RequestUrlParam, RequestUrlResponse, Notice } from 'obsidian';
 
 /**
  * Format a date as YYYY-MM-DD
@@ -108,4 +109,92 @@ export function formatTag(tag: string, caseFormat: TagCaseFormat = 'lowercase'):
         default:
             return formattedTag.toLowerCase();
     }
+}
+
+/**
+ * Common function to make API requests with proper error handling
+ * @param requestParams Request parameters for requestUrl
+ * @param errorPrefix Prefix for error messages
+ * @returns The response from the API
+ */
+export async function makeApiRequest(
+    requestParams: RequestUrlParam,
+    errorPrefix: string = 'API'
+): Promise<RequestUrlResponse> {
+    try {
+        const response = await requestUrl(requestParams);
+        
+        if (response.status !== 200) {
+            let errorMessage = `${errorPrefix} request failed`;
+            try {
+                const errorData = response.json;
+                errorMessage = errorData.error?.message || `${errorPrefix} error (${response.status})`;
+            } catch (e) {
+                errorMessage = `${errorPrefix} error (${response.status})`;
+            }
+            throw new Error(errorMessage);
+        }
+        
+        return response;
+    } catch (error) {
+        // Enhance error with rate limiting information if applicable
+        if (error.message.includes('429')) {
+            error.message = `${errorPrefix} rate limit exceeded. Please try again later.`;
+        }
+        throw error;
+    }
+}
+
+/**
+ * Add delay for rate limiting and other purposes
+ * @param ms Milliseconds to delay
+ * @returns Promise that resolves after the delay
+ */
+export function delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Retry a function with exponential backoff
+ * @param fn The function to retry
+ * @param retries Number of retries
+ * @param initialDelay Initial delay in milliseconds
+ * @param showNotice Whether to show a notification for retries
+ * @returns The result of the function
+ */
+export async function retryWithDelay<T>(
+    fn: () => Promise<T>,
+    retries: number = 2,
+    initialDelay: number = 5000,
+    showNotice: boolean = true
+): Promise<T> {
+    let lastError: Error | null = null;
+    let currentDelay = initialDelay;
+
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+            if (attempt > 0) {
+                console.log(`Retry attempt ${attempt} of ${retries}, waiting ${currentDelay}ms...`);
+                await delay(currentDelay);
+                
+                // Show retry notification if enabled
+                if (showNotice) {
+                    new Notice(`Retrying operation (${attempt}/${retries})...`, 3000);
+                }
+                
+                currentDelay *= 2; // Double the delay for each retry
+            }
+            return await fn();
+        } catch (error) {
+            lastError = error;
+            if (!error.message.includes('429')) {
+                throw error; // If it's not a rate limit error, throw immediately
+            }
+            if (attempt === retries) {
+                console.log('All retry attempts failed');
+                throw error;
+            }
+        }
+    }
+    throw lastError!; // We know it's not null here because we would have thrown earlier if no error occurred
 } 

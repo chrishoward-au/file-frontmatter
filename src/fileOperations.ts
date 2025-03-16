@@ -1,8 +1,9 @@
 import { App, Notice, TFile, TFolder, Vault } from 'obsidian';
 import { FileFrontmatterSettings, TagCaseFormat } from './types';
 import { formatDate, replaceTemplateVariables, formatTag } from './utils';
-import { generateTags, promptForManualTags } from './textProcessing';
-import { extractTextFromFile, isFileTypeSupported } from './fileHandler';
+import { generateTags } from './textProcessing';
+import { extractTextFromFile, isFileTypeSupported, isAIProviderConfigured } from './fileHandler';
+import { promptForManualTags } from './modals';
 
 /**
  * Creates a note alongside a PDF or other allowed file type
@@ -80,11 +81,7 @@ async function createNoteContent(file: TFile, fileLink: string, settings: FileFr
         console.log('AI Provider:', settings.aiProvider);
         let tags: string[] = [];
         
-        const hasValidProvider = (settings.aiProvider === 'openai' && settings.openAIApiKey) ||
-                               (settings.aiProvider === 'gemini' && settings.googleClientId && settings.googleClientSecret) ||
-                               (settings.aiProvider === 'ollama');
-        
-        if (hasValidProvider) {
+        if (isAIProviderConfigured(settings)) {
             try {
                 tags = await generateTags(extractedText, settings, app);
                 console.log('Generated tags:', tags);

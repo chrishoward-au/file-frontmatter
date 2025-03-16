@@ -1,6 +1,72 @@
-import { App, Modal, Notice, Setting } from 'obsidian';
+import { App, Modal, Notice, Setting, TFile } from 'obsidian';
 import { FileFrontmatterSettings } from './types';
 import { handleMarkdownTagGeneration } from './markdownHandler';
+
+/**
+ * Modal for entering tags manually
+ */
+export class ManualTagsModal extends Modal {
+    tags: string = '';
+    onSubmit: (result: string[]) => void;
+    onCancel: () => void;
+
+    constructor(app: App, onSubmit: (result: string[]) => void, onCancel: () => void) {
+        super(app);
+        this.onSubmit = onSubmit;
+        this.onCancel = onCancel;
+    }
+
+    onOpen() {
+        const { contentEl } = this;
+        contentEl.empty();
+
+        contentEl.createEl('h2', { text: 'Enter Tags Manually' });
+        contentEl.createEl('p', { text: 'Please enter tags separated by commas. Spaces will be replaced with hyphens.' });
+
+        new Setting(contentEl)
+            .setName('Tags')
+            .addText(text => text
+                .setPlaceholder('tag1, tag2, tag3')
+                .onChange(value => {
+                    this.tags = value;
+                }));
+
+        new Setting(contentEl)
+            .addButton(btn => btn
+                .setButtonText('Submit')
+                .setCta()
+                .onClick(() => {
+                    const tagList = this.tags
+                        .split(',')
+                        .map(tag => tag.trim())
+                        .filter(tag => tag.length > 0);
+                    this.onSubmit(tagList);
+                    this.close();
+                }))
+            .addButton(btn => btn
+                .setButtonText('Cancel')
+                .onClick(() => {
+                    this.onCancel();
+                    this.close();
+                }));
+    }
+
+    onClose() {
+        const { contentEl } = this;
+        contentEl.empty();
+    }
+}
+
+/**
+ * Opens a modal to prompt for manual tags
+ * @param app The Obsidian App instance
+ * @returns Promise that resolves with the entered tags
+ */
+export async function promptForManualTags(app: App): Promise<string[]> {
+    return new Promise((resolve, reject) => {
+        new ManualTagsModal(app, resolve, reject).open();
+    });
+}
 
 /**
  * Modal to confirm tag generation for markdown files
