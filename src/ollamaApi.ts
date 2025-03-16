@@ -1,7 +1,6 @@
-import { requestUrl } from 'obsidian';
 import { FileFrontmatterSettings } from './types';
-import { processTagsWithRetry, createRetryPrompt } from './tagProcessing';
 import { makeApiRequest } from './utils';
+import { processTagsWithRetry, createRetryPrompt } from './tagsManager';
 
 interface OllamaResponse {
     response: string;
@@ -10,6 +9,12 @@ interface OllamaResponse {
     done: boolean;
 }
 
+/**
+ * Generate tags using Ollama API
+ * @param text The text to generate tags from
+ * @param settings Plugin settings with Ollama configuration
+ * @returns Array of generated tags
+ */
 export async function generateOllamaTags(
     text: string, 
     settings: FileFrontmatterSettings

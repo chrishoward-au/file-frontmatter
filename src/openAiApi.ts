@@ -1,6 +1,6 @@
 import { FileFrontmatterSettings } from './types';
 import { makeApiRequest, retryWithDelay } from './utils';
-import { processTagsWithRetry, createRetryPrompt } from './tagProcessing';
+import { processTagsWithRetry, createRetryPrompt } from './tagsManager';
 
 interface OpenAIResponse {
     choices: Array<{
@@ -13,7 +13,10 @@ interface OpenAIResponse {
 /**
  * Generate tags using OpenAI API
  * @param text The text to generate tags from
- * @param settings Plugin settings
+ * @param apiKey OpenAI API key
+ * @param maxTags Maximum number of tags to generate
+ * @param prompt Prompt for the AI model
+ * @param maxWordsPerTag Maximum words per tag
  * @returns Array of generated tags
  */
 export async function generateOpenAITags(

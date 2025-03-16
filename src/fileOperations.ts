@@ -1,7 +1,7 @@
 import { App, Notice, TFile, TFolder, Vault } from 'obsidian';
 import { FileFrontmatterSettings, TagCaseFormat } from './types';
 import { formatDate, replaceTemplateVariables, formatTag } from './utils';
-import { generateTags } from './textProcessing';
+import { generateTags, formatTagsAsYamlList } from './tagsManager';
 import { extractTextFromFile, isFileTypeSupported, isAIProviderConfigured } from './fileHandler';
 import { promptForManualTags } from './modals';
 
@@ -100,16 +100,18 @@ async function createNoteContent(file: TFile, fileLink: string, settings: FileFr
             }
         }
         
-        // Take only the specified number of tags and format them properly
-        const selectedTags = tags
-            .map(tag => formatTag(tag, settings.tagCaseFormat));
-        console.log('Selected tags:', selectedTags);
+        // Add file extension as an additional tag
+        tags.push(file.extension);
+        
+        // Format tags for frontmatter
+        const formattedTagsList = formatTagsAsYamlList(tags, settings.tagCaseFormat);
+        console.log('Formatted tags:', formattedTagsList);
 
         // Replace template variables and add tags
         const templateVariables = {
             title: file.basename,
             date: formatDate(),
-            tags: '- '+selectedTags.sort().join('\n- ')+'\n- '+file.extension
+            tags: formattedTagsList
         };
         console.log('Template variables:', templateVariables);
         

@@ -1,6 +1,6 @@
 import { FileFrontmatterSettings } from './types';
 import { makeApiRequest, retryWithDelay } from './utils';
-import { processTagsWithRetry, createRetryPrompt } from './tagProcessing';
+import { processTagsWithRetry, createRetryPrompt } from './tagsManager';
 
 /**
  * Response structure for Gemini API
@@ -14,7 +14,7 @@ interface GeminiResponse {
 /**
  * Generate tags using Google Gemini API
  * @param text The text to generate tags from
- * @param settings Plugin settings
+ * @param settings Plugin settings with Gemini configuration
  * @returns Array of generated tags
  */
 export async function generateGeminiTags(
