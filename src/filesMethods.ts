@@ -98,7 +98,7 @@ export async function handleNonMarkdownFile(app: App, file: TFile, settings: Fil
         }
         
         // Create note for the file
-        const { createNoteForFile } = await import('./fileOperations');
+        const { createNoteForFile } = await import('./notesMethods');
         await createNoteForFile(app, file, settings);
     } catch (error) {
         console.error('Error handling non-markdown file:', error);

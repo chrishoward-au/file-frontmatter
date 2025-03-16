@@ -1,6 +1,7 @@
 import { FileFrontmatterSettings } from './types';
 import { makeApiRequest, retryWithDelay } from './utils';
-import { processTagsWithRetry, createRetryPrompt } from './tagsManager';
+import { processTagsWithRetry } from './tagsMethods';
+import { createRetryPrompt } from './openAiApi';
 
 /**
  * Response structure for Gemini API

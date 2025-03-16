@@ -1,8 +1,8 @@
 import { App, Notice, TFile, TFolder, Vault } from 'obsidian';
 import { FileFrontmatterSettings, TagCaseFormat } from './types';
 import { formatDate, replaceTemplateVariables, formatTag } from './utils';
-import { generateTags, formatTagsAsYamlList } from './tagsManager';
-import { extractTextFromFile, isFileTypeSupported, isAIProviderConfigured } from './fileHandler';
+import { generateTags, formatTagsAsYamlList } from './tagsMethods';
+import { extractTextFromFile, isFileTypeSupported, isAIProviderConfigured } from './filesMethods';
 import { promptForManualTags } from './modals';
 
 /**

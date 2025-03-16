@@ -1,6 +1,6 @@
 import { FileFrontmatterSettings } from './types';
 import { makeApiRequest, retryWithDelay } from './utils';
-import { processTagsWithRetry, createRetryPrompt } from './tagsManager';
+import { processTagsWithRetry } from './tagsMethods';
 
 interface OpenAIResponse {
     choices: Array<{
@@ -46,6 +46,21 @@ export async function generateOpenAITags(
         console.error('Error generating tags with OpenAI:', error);
         throw error;
     }
+}
+
+/**
+ * Create a more explicit prompt for retry attempts
+ * @param maxTags Maximum number of tags
+ * @param maxWordsPerTag Maximum words per tag
+ * @returns A more explicit prompt
+ */
+export function createRetryPrompt(maxTags: number, maxWordsPerTag: number): string {
+    return `Generate exactly ${maxTags} relevant tags for this text. 
+    Each tag MUST have no more than ${maxWordsPerTag} word${maxWordsPerTag > 1 ? 's' : ''}.
+    Return ONLY the tags as a comma-separated list (e.g., "tag1, tag2, tag3").
+    Do not include explanations, hashes, or additional text.
+    Do not concatenate tags with hyphens or other characters.
+    Do not number the tags.`;
 }
 
 /**

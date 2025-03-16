@@ -1,6 +1,6 @@
 import { App, Notice, Plugin, TFile } from 'obsidian';
 import { FileFrontmatterSettings } from './types';
-import { isAIProviderConfigured, handleNonMarkdownFile, isFileTypeSupported } from './fileHandler';
+import { isAIProviderConfigured, handleNonMarkdownFile, isFileTypeSupported } from './filesMethods';
 import { openMarkdownTagsModal } from './modals';
 
 /**

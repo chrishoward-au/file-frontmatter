@@ -1,6 +1,6 @@
 import { App, Modal, Notice, Setting, TFile } from 'obsidian';
 import { FileFrontmatterSettings } from './types';
-import { handleMarkdownTagGeneration } from './tagsManager';
+import { handleMarkdownTagGeneration } from './tagsMethods';
 
 /**
  * Modal for entering tags manually

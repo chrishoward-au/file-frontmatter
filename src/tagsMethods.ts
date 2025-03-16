@@ -46,39 +46,29 @@ export async function generateTags(text: string, settings: FileFrontmatterSettin
             default:
                 throw new Error(`Unknown AI provider: ${provider}`);
         }
-
-        // Clear the loading notice on success
-        if (loadingNotice) {
-            loadingNotice.hide();
-            loadingNotice = null;
-        }
-
-        // Show success notification
-        new Notice('Tags generated successfully!', 3000);
-        return tags;
-    } catch (error) {
-        // Clear the loading notice if it's still showing
-        if (loadingNotice) {
-            loadingNotice.hide();
-            loadingNotice = null;
-        }
         
-        console.error('Error generating tags:', error);
-        
-        if (error.message.includes('429')) {
-            new Notice('AI service rate limit reached. Would you like to enter tags manually?', 5000);
-            try {
-                const manualTags = await promptForManualTags(app);
-                if (manualTags.length > 0) {
-                    new Notice('Tags added manually!', 3000);
-                }
-                return manualTags;
-            } catch (e) {
-                throw new Error('Note creation cancelled');
+        // Process and validate the tags
+        return await processTagsWithRetry(tags, settings, async () => {
+            // Retry function - generate tags again with the same provider
+            switch(provider) {
+                case 'openai':
+                    return await generateOpenAITags(text, settings.openAIApiKey, settings.maxTags, finalPrompt, settings.maxWordsPerTag);
+                case 'ollama':
+                    return await generateOllamaTags(text, settings);
+                case 'gemini':
+                    return await generateGeminiTags(text, settings);
+                default:
+                    throw new Error(`Unknown AI provider: ${provider}`);
             }
-        }
-        
+        });
+    } catch (error) {
+        console.error('Error generating tags:', error);
         throw error;
+    } finally {
+        // Clear the loading notice if it exists
+        if (loadingNotice) {
+            loadingNotice.hide();
+        }
     }
 }
 
@@ -125,18 +115,29 @@ export async function processTagsWithRetry(
 }
 
 /**
- * Create a more explicit prompt for retry attempts
- * @param maxTags Maximum number of tags
- * @param maxWordsPerTag Maximum words per tag
- * @returns A more explicit prompt
+ * Format tags for inclusion in frontmatter
+ * @param tags Array of tags
+ * @param tagCaseFormat The format to apply to tags
+ * @returns Formatted tags as a YAML list
  */
-export function createRetryPrompt(maxTags: number, maxWordsPerTag: number): string {
-    return `Generate exactly ${maxTags} relevant tags for this text. 
-    Each tag MUST have no more than ${maxWordsPerTag} word${maxWordsPerTag > 1 ? 's' : ''}.
-    Return ONLY the tags as a comma-separated list (e.g., "tag1, tag2, tag3").
-    Do not include explanations, hashes, or additional text.
-    Do not concatenate tags with hyphens or other characters.
-    Do not number the tags.`;
+export function formatTagsAsYamlList(tags: string[], tagCaseFormat: TagCaseFormat): string {
+    return tags
+        .map(tag => formatTag(tag, tagCaseFormat))
+        .map(tag => `  - "${tag}"`)
+        .join('\n');
+}
+
+/**
+ * Format tags for frontmatter
+ * @param tags Array of tags
+ * @param tagCaseFormat The format to apply to tags
+ * @returns Formatted tags as a string
+ */
+export function formatTagsForFrontmatter(tags: string[], tagCaseFormat: TagCaseFormat): string {
+    return tags
+        .map(tag => formatTag(tag, tagCaseFormat))
+        .map(tag => `"${tag}"`)
+        .join(', ');
 }
 
 /**
@@ -214,30 +215,4 @@ export async function updateFileWithTags(
     // Save the updated content
     await app.vault.modify(file, newContent);
     new Notice(`Tags added to ${file.basename}`);
-}
-
-/**
- * Format a list of tags according to settings and prepare for inclusion in frontmatter
- * @param tags Raw tags to format
- * @param tagCaseFormat Format to apply to tags
- * @returns Formatted tags as a string ready for frontmatter
- */
-export function formatTagsForFrontmatter(tags: string[], tagCaseFormat: TagCaseFormat): string {
-    return tags
-        .map(tag => formatTag(tag, tagCaseFormat))
-        .map(tag => `"${tag}"`)
-        .join(', ');
-}
-
-/**
- * Prepare tags in YAML list format for inclusion in frontmatter
- * @param tags Raw tags to format
- * @param tagCaseFormat Format to apply to tags
- * @returns Formatted tags in YAML list format
- */
-export function formatTagsAsYamlList(tags: string[], tagCaseFormat: TagCaseFormat): string {
-    return tags
-        .map(tag => formatTag(tag, tagCaseFormat))
-        .map(tag => `- ${tag}`)
-        .join('\n');
 } 

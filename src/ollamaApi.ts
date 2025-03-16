@@ -1,6 +1,7 @@
 import { FileFrontmatterSettings } from './types';
 import { makeApiRequest } from './utils';
-import { processTagsWithRetry, createRetryPrompt } from './tagsManager';
+import { processTagsWithRetry } from './tagsMethods';
+import { createRetryPrompt } from './openAiApi';
 
 interface OllamaResponse {
     response: string;
@@ -20,9 +21,6 @@ export async function generateOllamaTags(
     settings: FileFrontmatterSettings
 ): Promise<string[]> {
     try {
-        console.log('Generating tags using Ollama');
-        console.log('Ollama host:', settings.ollamaHost);
-        console.log('Ollama model:', settings.ollamaModel);
         
         // Prepare the prompt by replacing variables
         const finalPrompt = settings.aiPrompt
