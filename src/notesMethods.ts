@@ -1,7 +1,7 @@
 import { App, Notice, TFile, TFolder, Vault } from 'obsidian';
 import { FileFrontmatterSettings, TagCaseFormat } from './types';
 import { formatDate, replaceTemplateVariables, formatTag } from './utils';
-import { generateTags, formatTagsAsYamlList } from './tagsMethods';
+import { generateTags, formatTagsAsYamlList, manageFrontmatterTags } from './tagsMethods';
 import { extractTextFromFile, isFileTypeSupported, isAIProviderConfigured } from './filesMethods';
 import { promptForManualTags } from './modals';
 
@@ -103,30 +103,28 @@ async function createNoteContent(file: TFile, fileLink: string, settings: FileFr
         // Add file extension as an additional tag
         tags.push(file.extension);
         
-        // Format tags for frontmatter
-        const formattedTagsList = formatTagsAsYamlList(tags, settings.tagCaseFormat);
-        console.log('Formatted tags:', formattedTagsList);
-
-        // Replace template variables and add tags
-        const templateVariables = {
-            title: file.basename,
-            date: formatDate(),
-            tags: formattedTagsList
-        };
-        console.log('Template variables:', templateVariables);
-        
-        const frontmatter = replaceTemplateVariables(settings.defaultTemplate, templateVariables);
-        console.log('Generated frontmatter:', frontmatter);
-        
-        // Create note content with or without extracted text based on settings
-        let noteContent = `${frontmatter}\n\n## ${file.basename}\n\n![[${fileLink}]]`;
+        // Create base content without frontmatter
+        let baseContent = `## ${file.basename}\n\n![[${fileLink}]]`;
         
         // Only include extracted text if the setting is enabled
         if (settings.includeExtractedText) {
-            noteContent += `\n\n## Extracted Text\n\n${extractedText}`;
+            baseContent += `\n\n## Extracted Text\n\n${extractedText}`;
         }
         
-        return noteContent + '\n';
+        // Add template variables for the frontmatter
+        const templateVars = {
+            title: file.basename,
+            date: formatDate()
+        };
+        
+        // Apply frontmatter with tags and template
+        return manageFrontmatterTags(
+            baseContent, 
+            tags, 
+            settings.tagCaseFormat, 
+            settings.defaultTemplate, 
+            templateVars
+        );
     } catch (error) {
         console.error('Error creating note content:', error);
         if (error.message === 'Note creation cancelled') {
