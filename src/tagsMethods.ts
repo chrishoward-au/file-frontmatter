@@ -5,7 +5,7 @@ import { generateOpenAITags } from './openAiApi';
 import { generateOllamaTags } from './ollamaApi';
 import { generateGeminiTags } from './geminiApi';
 import { promptForManualTags } from './modals';
-import { normalizeSpelling } from './spellingNormalizer';
+import { normalizeSpelling, normalizeForComparison } from './spellingNormalizer';
 
 /**
  * Core tag generation service that handles AI provider selection and error handling
@@ -206,6 +206,9 @@ export function manageFrontmatterTags(
     templateVars?: Record<string, string>,
     languagePreference?: LanguagePreference
 ): string {
+    // Use UK as the default language preference if not specified
+    const langPref = languagePreference || 'uk';
+
     // Check if content already has frontmatter
     if (content.startsWith('---\n')) {
         // Content has frontmatter, update or add tags
@@ -222,23 +225,34 @@ export function manageFrontmatterTags(
                     const existingTags = extractExistingTags(frontmatter);
                     console.log('Existing tags:', existingTags);
                     
-                    // Filter out tags that already exist (normalized comparison)
+                    // Normalize existing tags according to language preference
+                    const normalizedExistingTags = existingTags.map(tag => 
+                        normalizeSpelling(tag, langPref)
+                    );
+                    
+                    // Filter out and normalize new tags
                     const newTags = tags.filter(tag => {
                         const formattedTag = formatTag(tag, tagCaseFormat);
-                        const normalizedNewTag = normalizeSpelling(formattedTag, languagePreference);
-                        return !existingTags.some(existingTag => {
-                            const normalizedExistingTag = normalizeSpelling(existingTag, languagePreference);
-                            const isMatch = normalizedExistingTag === normalizedNewTag;
-                            if (isMatch) {
-                                console.log(`Skipping duplicate: "${formattedTag}" matches existing "${existingTag}"`);
-                            }
-                            return isMatch;
-                        });
+                        // Normalize the tag according to language preference
+                        const normalizedTag = normalizeSpelling(formattedTag, langPref);
+                        
+                        // Check if this tag already exists (after normalization)
+                        const normalizedLowerTag = normalizeForComparison(normalizedTag);
+                        const isDuplicate = normalizedExistingTags.some(existingTag => 
+                            normalizeForComparison(existingTag) === normalizedLowerTag
+                        );
+                        
+                        if (isDuplicate) {
+                            console.log(`Skipping duplicate: "${formattedTag}" matches existing tag after normalization`);
+                            return false;
+                        }
+                        return true;
                     });
+                    
                     console.log('New tags to add:', newTags);
                     
-                    // Combine existing and new tags
-                    const combinedTags = [...existingTags, ...newTags];
+                    // Combine existing and new tags, using normalized versions of the existing tags
+                    const combinedTags = [...normalizedExistingTags, ...newTags.map(t => normalizeSpelling(formatTag(t, tagCaseFormat), langPref))];
                     
                     // Format the combined tags
                     const formattedTagsList = formatTagsAsYamlList(combinedTags, tagCaseFormat);
@@ -248,8 +262,13 @@ export function manageFrontmatterTags(
                     
                     return newFrontmatter + restOfContent;
                 } else {
+                    // Normalize all tags according to language preference for replace mode
+                    const normalizedTags = tags.map(tag => 
+                        normalizeSpelling(formatTag(tag, tagCaseFormat), langPref)
+                    );
+                    
                     // Replace existing tags
-                    const formattedTagsList = formatTagsAsYamlList(tags, tagCaseFormat);
+                    const formattedTagsList = formatTagsAsYamlList(normalizedTags, tagCaseFormat);
                     console.log(formattedTagsList);
                     // Replace the entire tags section - avoid using /s flag
                     const newFrontmatter = replaceTagsSection(frontmatter, formattedTagsList);
@@ -257,16 +276,28 @@ export function manageFrontmatterTags(
                 }
             } else {
                 // Add tags before the end of frontmatter
-                const formattedTagsList = formatTagsAsYamlList(tags, tagCaseFormat);
+                // Normalize all tags according to language preference
+                const normalizedTags = tags.map(tag => 
+                    normalizeSpelling(formatTag(tag, tagCaseFormat), langPref)
+                );
+                const formattedTagsList = formatTagsAsYamlList(normalizedTags, tagCaseFormat);
                 return frontmatter + `tags:\n${formattedTagsList}\n` + restOfContent;
             }
         } else {
             // Malformed frontmatter, add new one
-            return createNewFrontmatter(content, tags, tagCaseFormat, templateStr, templateVars);
+            // Normalize tags according to language preference
+            const normalizedTags = tags.map(tag => 
+                normalizeSpelling(formatTag(tag, tagCaseFormat), langPref)
+            );
+            return createNewFrontmatter(content, normalizedTags, tagCaseFormat, templateStr, templateVars);
         }
     } else {
         // No frontmatter, add new one
-        return createNewFrontmatter(content, tags, tagCaseFormat, templateStr, templateVars);
+        // Normalize tags according to language preference
+        const normalizedTags = tags.map(tag => 
+            normalizeSpelling(formatTag(tag, tagCaseFormat), langPref)
+        );
+        return createNewFrontmatter(content, normalizedTags, tagCaseFormat, templateStr, templateVars);
     }
 }
 
@@ -357,14 +388,18 @@ export async function handleMarkdownTagGeneration(
                     if (frontmatter.includes('tags:')) {
                         const existingTags = extractExistingTags(frontmatter);
                         
+                        // Normalize existing tags
+                        const normalizedExistingTags = existingTags.map(tag => 
+                            normalizeSpelling(tag, settings.languagePreference)
+                        );
+                        
                         // Count how many new tags we're adding
                         const newTagsCount = tags.filter(tag => {
                             const formattedTag = formatTag(tag, settings.tagCaseFormat);
-                            const normalizedNewTag = normalizeSpelling(formattedTag, settings.languagePreference);
-                            return !existingTags.some(existingTag => {
-                                const normalizedExistingTag = normalizeSpelling(existingTag, settings.languagePreference);
-                                return normalizedExistingTag === normalizedNewTag;
-                            });
+                            const normalizedTag = normalizeSpelling(formattedTag, settings.languagePreference);
+                            return !normalizedExistingTags.some(existingTag => 
+                                normalizeForComparison(existingTag) === normalizeForComparison(normalizedTag)
+                            );
                         }).length;
                         
                         // Update the file with the generated tags

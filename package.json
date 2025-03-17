@@ -1,6 +1,6 @@
 {
 	"name": "file-to-note",
-	"version": "0.1.28",
+	"version": "0.1.29",
 	"description": "Generate nicely formatted notes from files with AI-powered tag suggestions",
 	"main": "main.js",
 	"scripts": {

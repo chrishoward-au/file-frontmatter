@@ -10,55 +10,59 @@ import { LanguagePreference } from './types';
 type SpellingVariants = Record<string, string>;
 
 /**
- * Normalize spelling for text comparison
- * Standardizes text by handling common spelling variants based on user's language preference
+ * Normalize spelling for text comparison and standardization
+ * Returns the preferred spelling variant based on language preference
  * @param text The text to normalize
  * @param languagePreference The user's language preference (UK or US English)
- * @returns Normalized text for comparison
+ * @returns Text with normalized spelling based on preference
  */
 export function normalizeSpelling(text: string, languagePreference: LanguagePreference = 'uk'): string {
-    // Convert to lowercase
-    let normalized = text.toLowerCase();
+    // Convert to lowercase for comparison
+    const lowercased = text.toLowerCase();
     
-    // Apply spelling normalizations based on language preference
+    // Get the variants dictionary
     const variants = spellingVariants as SpellingVariants;
     
-    if (languagePreference === 'uk') {
-        // If UK is preferred, normalize US spellings to UK
-        for (const [ukVariant, usStandard] of Object.entries(variants)) {
-            // If the text matches the US spelling, convert to UK
-            if (normalized === usStandard) {
-                normalized = ukVariant;
-                break;
+    // Check if this is a known spelling variant
+    for (const [ukVariant, usVariant] of Object.entries(variants)) {
+        // If it matches either variant (UK or US spelling)
+        if (lowercased === ukVariant.toLowerCase() || lowercased === usVariant.toLowerCase()) {
+            // Return the preferred spelling, preserving original case pattern
+            const preferred = languagePreference === 'uk' ? ukVariant : usVariant;
+            
+            // If original had first letter capitalized, capitalize the preferred version too
+            if (text[0] === text[0].toUpperCase()) {
+                return preferred.charAt(0).toUpperCase() + preferred.slice(1);
             }
-        }
-    } else {
-        // If US is preferred, normalize UK spellings to US
-        for (const [ukVariant, usStandard] of Object.entries(variants)) {
-            // If the text matches the UK spelling, convert to US
-            if (normalized === ukVariant) {
-                normalized = usStandard;
-                break;
-            }
+            return preferred;
         }
     }
     
-    // Remove any remaining special characters and extra spaces
-    normalized = normalized.replace(/[^\w\s-]/g, '')
-                          .replace(/\s+/g, '-')
-                          .replace(/-+/g, '-');
-    
-    return normalized;
+    // If no variant is found, return the original text
+    return text;
+}
+
+/**
+ * Normalize text for comparison purposes only (not for display)
+ * @param text The text to normalize for comparison
+ * @returns Text stripped of special characters and normalized to lowercase
+ */
+export function normalizeForComparison(text: string): string {
+    // Convert to lowercase and remove special characters
+    return text.toLowerCase()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-');
 }
 
 /**
  * Add a new spelling variant to the dictionary
  * This is a placeholder for future functionality
- * @param variant The variant spelling (UK version)
- * @param standard The standardized spelling (US version)
+ * @param ukVariant The UK spelling variant
+ * @param usVariant The US spelling variant
  */
-export function addSpellingVariant(variant: string, standard: string): void {
+export function addSpellingVariant(ukVariant: string, usVariant: string): void {
     // In the future, this could update the spelling variants in storage
-    console.log(`Adding spelling variant: ${variant} -> ${standard}`);
+    console.log(`Adding spelling variant: ${ukVariant} <-> ${usVariant}`);
     // Implementation would depend on how we want to persist the dictionary
 } 
