@@ -2,6 +2,7 @@ import { TFile } from 'obsidian';
 
 export type AIProvider = 'openai' | 'gemini' | 'ollama';
 export type TagCaseFormat = 'lowercase' | 'uppercase' | 'titlecase' | 'retain';
+export type LanguagePreference = 'uk' | 'us';
 
 export interface FileFrontmatterSettings {
 	defaultTemplate: string;
@@ -17,6 +18,7 @@ export interface FileFrontmatterSettings {
 	ollamaModel: string;
 	maxWordsPerTag: number;
 	tagCaseFormat: TagCaseFormat;
+	languagePreference: LanguagePreference;
 }
 
 export const DEFAULT_SETTINGS: FileFrontmatterSettings = {
@@ -30,7 +32,8 @@ export const DEFAULT_SETTINGS: FileFrontmatterSettings = {
 	ollamaHost: 'http://localhost:11434',
 	ollamaModel: 'llama2',
 	maxWordsPerTag: 2,
-	tagCaseFormat: 'lowercase'
+	tagCaseFormat: 'lowercase',
+	languagePreference: 'uk'
 }
 
 export type TextExtractorApi = {

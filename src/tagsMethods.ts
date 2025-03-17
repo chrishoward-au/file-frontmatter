@@ -1,5 +1,5 @@
 import { App, Notice, TFile } from 'obsidian';
-import { FileFrontmatterSettings, TagCaseFormat } from './types';
+import { FileFrontmatterSettings, TagCaseFormat, LanguagePreference } from './types';
 import { formatTag, filterErroneousTags, replaceTemplateVariables, stripFrontmatter } from './utils';
 import { generateOpenAITags } from './openAiApi';
 import { generateOllamaTags } from './ollamaApi';
@@ -194,6 +194,7 @@ function extractExistingTags(frontmatter: string): string[] {
  * @param mode How to handle existing tags: 'append' or 'replace'
  * @param templateStr Optional template string to use for new frontmatter
  * @param templateVars Optional additional template variables
+ * @param languagePreference Language preference for spelling normalization
  * @returns The updated content with frontmatter including tags
  */
 export function manageFrontmatterTags(
@@ -202,7 +203,8 @@ export function manageFrontmatterTags(
     tagCaseFormat: TagCaseFormat,
     mode: 'append' | 'replace' = 'replace',
     templateStr?: string,
-    templateVars?: Record<string, string>
+    templateVars?: Record<string, string>,
+    languagePreference?: LanguagePreference
 ): string {
     // Check if content already has frontmatter
     if (content.startsWith('---\n')) {
@@ -223,9 +225,9 @@ export function manageFrontmatterTags(
                     // Filter out tags that already exist (normalized comparison)
                     const newTags = tags.filter(tag => {
                         const formattedTag = formatTag(tag, tagCaseFormat);
-                        const normalizedNewTag = normalizeSpelling(formattedTag);
+                        const normalizedNewTag = normalizeSpelling(formattedTag, languagePreference);
                         return !existingTags.some(existingTag => {
-                            const normalizedExistingTag = normalizeSpelling(existingTag);
+                            const normalizedExistingTag = normalizeSpelling(existingTag, languagePreference);
                             const isMatch = normalizedExistingTag === normalizedNewTag;
                             if (isMatch) {
                                 console.log(`Skipping duplicate: "${formattedTag}" matches existing "${existingTag}"`);
@@ -358,9 +360,9 @@ export async function handleMarkdownTagGeneration(
                         // Count how many new tags we're adding
                         const newTagsCount = tags.filter(tag => {
                             const formattedTag = formatTag(tag, settings.tagCaseFormat);
-                            const normalizedNewTag = normalizeSpelling(formattedTag);
+                            const normalizedNewTag = normalizeSpelling(formattedTag, settings.languagePreference);
                             return !existingTags.some(existingTag => {
-                                const normalizedExistingTag = normalizeSpelling(existingTag);
+                                const normalizedExistingTag = normalizeSpelling(existingTag, settings.languagePreference);
                                 return normalizedExistingTag === normalizedNewTag;
                             });
                         }).length;
@@ -370,7 +372,10 @@ export async function handleMarkdownTagGeneration(
                             fileContent, 
                             tags, 
                             settings.tagCaseFormat,
-                            mode
+                            mode,
+                            undefined,
+                            undefined,
+                            settings.languagePreference
                         );
                         await app.vault.modify(file, newContent);
                         
@@ -390,7 +395,10 @@ export async function handleMarkdownTagGeneration(
                 fileContent, 
                 tags, 
                 settings.tagCaseFormat,
-                mode
+                mode,
+                undefined,
+                undefined,
+                settings.languagePreference
             );
             await app.vault.modify(file, newContent);
             new Notice(`Tags ${mode === 'append' ? 'added to' : 'updated for'} ${file.basename}`);
