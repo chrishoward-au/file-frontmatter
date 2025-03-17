@@ -1,0 +1,11 @@
+{
+	"id": "file-to-note",
+	"name": "File to Note",
+	"version": "0.1.26",
+	"minAppVersion": "0.15.0",
+	"description": "Generate nicely formatted notes from files with AI-powered tag suggestions",
+	"author": "Chris Howard",
+	"authorUrl": "https://github.com/nwodtuhs",
+	"fundingUrl": "https://www.buymeacoffee.com/chrishoward",
+	"isDesktopOnly": false
+} 

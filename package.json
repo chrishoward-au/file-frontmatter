@@ -1,7 +1,7 @@
 {
 	"name": "file-to-note",
-	"version": "0.1.25",
-	"description": "An Obsidian plugin that a creates notes with frontmatter and tags from files such as PDFs",
+	"version": "0.1.26",
+	"description": "Generate nicely formatted notes from files with AI-powered tag suggestions",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
