@@ -129,6 +129,57 @@ export function formatTagsAsYamlList(tags: string[], tagCaseFormat: TagCaseForma
     return formatTagsList(tags, tagCaseFormat, '- ', '').join('\n');
 }
 
+/**
+ * Extract tags from frontmatter content
+ * @param frontmatter The frontmatter content
+ * @returns Array of extracted tags
+ */
+function extractExistingTags(frontmatter: string): string[] {
+    const tags: string[] = [];
+    
+    // Try to match YAML list format first (most common)
+    // Format: tags:\n- tag1\n- tag2
+    const yamlListMatch = frontmatter.match(/tags:\s*\n((?:\s*-\s*["']?(.*?)["']?\s*\n)+)/i);
+    if (yamlListMatch && yamlListMatch[1]) {
+        const yamlListContent = yamlListMatch[1];
+        // Use a regular for loop instead of matchAll which requires ES2018+
+        const regex = /\s*-\s*["']?(.*?)["']?\s*\n/gi;
+        let match;
+        while ((match = regex.exec(yamlListContent)) !== null) {
+            if (match[1]) {
+                tags.push(match[1].trim());
+            }
+        }
+        return tags;
+    }
+    
+    // Try to match inline array format
+    // Format: tags: [tag1, tag2]
+    const inlineArrayMatch = frontmatter.match(/tags:\s*\[(.*?)\]/i);
+    if (inlineArrayMatch && inlineArrayMatch[1]) {
+        const inlineTags = inlineArrayMatch[1].split(',');
+        for (const tag of inlineTags) {
+            // Remove quotes and trim
+            const cleanTag = tag.replace(/["']/g, '').trim();
+            if (cleanTag) {
+                tags.push(cleanTag);
+            }
+        }
+        return tags;
+    }
+    
+    // Try to match single tag format
+    // Format: tags: tag1
+    const singleTagMatch = frontmatter.match(/tags:\s*(.*?)(?:\n|$)/i);
+    if (singleTagMatch && singleTagMatch[1]) {
+        const singleTag = singleTagMatch[1].trim();
+        if (singleTag && singleTag !== "[]") {
+            tags.push(singleTag.replace(/["']/g, ''));
+        }
+    }
+    
+    return tags;
+}
 
 /**
  * Centralized function to manage frontmatter tags in Obsidian notes
@@ -148,9 +199,6 @@ export function manageFrontmatterTags(
     templateStr?: string,
     templateVars?: Record<string, string>
 ): string {
-    // Format tags
-    const formattedTagsList = formatTagsAsYamlList(tags, tagCaseFormat);
-
     // Check if content already has frontmatter
     if (content.startsWith('---\n')) {
         // Content has frontmatter, update or add tags
@@ -163,23 +211,38 @@ export function manageFrontmatterTags(
                 // Handle based on mode (append or replace)
                 if (mode === 'append') {
                     // Extract existing tags
-                    const tagsMatch = frontmatter.match(/tags:\s*\n((?:- .*\n)+)/i);
-                    if (tagsMatch && tagsMatch[1]) {
-                        // There are existing tags in YAML list format
-                        const existingTags = tagsMatch[1].trim();
-                        // Append new tags to existing ones
-                        return frontmatter.replace(/tags:\s*\n(?:- .*\n)+/i, `tags:\n${existingTags}\n${formattedTagsList}\n`) + restOfContent;
-                    } else {
-                        // There might be inline tags or empty tags
-                        // For safety, replace with the new tags (behave like replace)
-                        return frontmatter.replace(/tags:.*(\r?\n)/i, `tags:\n${formattedTagsList}$1`) + restOfContent;
-                    }
+                    const existingTags = extractExistingTags(frontmatter);
+                    console.log('Existing tags:', existingTags);
+                    
+                    // Filter out tags that already exist (case insensitive)
+                    const newTags = tags.filter(tag => {
+                        const formattedTag = formatTag(tag, tagCaseFormat);
+                        return !existingTags.some(existingTag => 
+                            existingTag.toLowerCase() === formattedTag.toLowerCase()
+                        );
+                    });
+                    console.log('New tags to add:', newTags);
+                    
+                    // Combine existing and new tags
+                    const combinedTags = [...existingTags, ...newTags];
+                    
+                    // Format the combined tags
+                    const formattedTagsList = formatTagsAsYamlList(combinedTags, tagCaseFormat);
+                    
+                    // Replace the entire tags section - avoid using /s flag
+                    let newFrontmatter = replaceTagsSection(frontmatter, formattedTagsList);
+                    
+                    return newFrontmatter + restOfContent;
                 } else {
                     // Replace existing tags
-                    return frontmatter.replace(/tags:.*(\r?\n)/i, `tags:\n${formattedTagsList}$1`) + restOfContent;
+                    const formattedTagsList = formatTagsAsYamlList(tags, tagCaseFormat);
+                    // Replace the entire tags section - avoid using /s flag
+                    const newFrontmatter = replaceTagsSection(frontmatter, formattedTagsList);
+                    return newFrontmatter + restOfContent;
                 }
             } else {
                 // Add tags before the end of frontmatter
+                const formattedTagsList = formatTagsAsYamlList(tags, tagCaseFormat);
                 return frontmatter + `tags:\n${formattedTagsList}\n` + restOfContent;
             }
         } else {
@@ -190,6 +253,38 @@ export function manageFrontmatterTags(
         // No frontmatter, add new one
         return createNewFrontmatter(content, tags, tagCaseFormat, templateStr, templateVars);
     }
+}
+
+/**
+ * Helper function to replace the tags section in frontmatter without using /s flag
+ */
+function replaceTagsSection(frontmatter: string, formattedTagsList: string): string {
+    // Try to find the tags section and replace it
+    const tagsStartIndex = frontmatter.toLowerCase().indexOf('tags:');
+    if (tagsStartIndex === -1) return frontmatter;
+    
+    // Find where the tags section ends (next property or end of frontmatter)
+    let tagsEndIndex = frontmatter.indexOf('\n', tagsStartIndex);
+    // Look for the next property or end of frontmatter
+    while (tagsEndIndex < frontmatter.length - 1) {
+        // Check if the next line starts a new property or ends the frontmatter
+        const nextLineStart = frontmatter.indexOf('\n', tagsEndIndex + 1);
+        if (nextLineStart === -1) break;
+        
+        const nextLine = frontmatter.substring(tagsEndIndex + 1, nextLineStart).trim();
+        // If it's a new property (contains a colon) or end of frontmatter (---)
+        if (nextLine.includes(':') || nextLine === '---') {
+            tagsEndIndex = tagsEndIndex + 1; // Include the newline
+            break;
+        }
+        // Otherwise, it's part of the tags section
+        tagsEndIndex = nextLineStart;
+    }
+    
+    // Replace just the tags section
+    return frontmatter.substring(0, tagsStartIndex) + 
+           `tags:\n${formattedTagsList}` + 
+           frontmatter.substring(tagsEndIndex);
 }
 
 /**
