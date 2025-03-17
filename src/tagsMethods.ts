@@ -5,6 +5,7 @@ import { generateOpenAITags } from './openAiApi';
 import { generateOllamaTags } from './ollamaApi';
 import { generateGeminiTags } from './geminiApi';
 import { promptForManualTags } from './modals';
+import { normalizeSpelling } from './spellingNormalizer';
 
 /**
  * Core tag generation service that handles AI provider selection and error handling
@@ -186,59 +187,6 @@ function extractExistingTags(frontmatter: string): string[] {
 }
 
 /**
- * Normalize tag text for comparison
- * Handles common spelling variants and removes special characters
- * @param tag The tag to normalize
- * @returns Normalized tag for comparison
- */
-function normalizeTagForComparison(tag: string): string {
-    // Convert to lowercase
-    let normalized = tag.toLowerCase();
-    
-    // Handle common British/American spelling variations
-    const spellingVariants: Record<string, string> = {
-        'judgement': 'judgment',
-        'colour': 'color',
-        'centre': 'center',
-        'theatre': 'theater',
-        'favourite': 'favorite',
-        'behaviour': 'behavior',
-        'analyse': 'analyze',
-        'organise': 'organize',
-        'recognise': 'recognize',
-        'travelled': 'traveled',
-        'travelling': 'traveling',
-        'cancelled': 'canceled',
-        'cancelling': 'canceling',
-        'defence': 'defense',
-        'offence': 'offense',
-        'practise': 'practice',
-        'licence': 'license',
-        'dialogue': 'dialog',
-        'catalogue': 'catalog',
-        'programme': 'program'
-    };
-    
-    // Apply spelling normalizations
-    for (const [variant, standard] of Object.entries(spellingVariants)) {
-        if (normalized === variant) {
-            normalized = standard;
-            break;
-        }
-        if (normalized === standard) {
-            break;
-        }
-    }
-    
-    // Remove any remaining special characters and extra spaces
-    normalized = normalized.replace(/[^\w\s-]/g, '')
-                          .replace(/\s+/g, '-')
-                          .replace(/-+/g, '-');
-    
-    return normalized;
-}
-
-/**
  * Centralized function to manage frontmatter tags in Obsidian notes
  * @param content Current content of an existing file or base content for a new file
  * @param tags Tags to add to the file
@@ -275,9 +223,9 @@ export function manageFrontmatterTags(
                     // Filter out tags that already exist (normalized comparison)
                     const newTags = tags.filter(tag => {
                         const formattedTag = formatTag(tag, tagCaseFormat);
-                        const normalizedNewTag = normalizeTagForComparison(formattedTag);
+                        const normalizedNewTag = normalizeSpelling(formattedTag);
                         return !existingTags.some(existingTag => {
-                            const normalizedExistingTag = normalizeTagForComparison(existingTag);
+                            const normalizedExistingTag = normalizeSpelling(existingTag);
                             const isMatch = normalizedExistingTag === normalizedNewTag;
                             if (isMatch) {
                                 console.log(`Skipping duplicate: "${formattedTag}" matches existing "${existingTag}"`);
@@ -300,7 +248,7 @@ export function manageFrontmatterTags(
                 } else {
                     // Replace existing tags
                     const formattedTagsList = formatTagsAsYamlList(tags, tagCaseFormat);
-                   console.log(formattedTagsList);
+                    console.log(formattedTagsList);
                     // Replace the entire tags section - avoid using /s flag
                     const newFrontmatter = replaceTagsSection(frontmatter, formattedTagsList);
                     return newFrontmatter + restOfContent;
@@ -410,9 +358,9 @@ export async function handleMarkdownTagGeneration(
                         // Count how many new tags we're adding
                         const newTagsCount = tags.filter(tag => {
                             const formattedTag = formatTag(tag, settings.tagCaseFormat);
-                            const normalizedNewTag = normalizeTagForComparison(formattedTag);
+                            const normalizedNewTag = normalizeSpelling(formattedTag);
                             return !existingTags.some(existingTag => {
-                                const normalizedExistingTag = normalizeTagForComparison(existingTag);
+                                const normalizedExistingTag = normalizeSpelling(existingTag);
                                 return normalizedExistingTag === normalizedNewTag;
                             });
                         }).length;
