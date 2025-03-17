@@ -334,7 +334,43 @@ export async function handleMarkdownTagGeneration(
         const tags = await generateTags(fileContent, settings, app);
 
         if (tags && tags.length > 0) {
-            // Update the file with the generated tags
+            // If in append mode, check if we're actually adding any new tags
+            if (mode === 'append') {
+                const frontmatterEnd = fileContent.indexOf('---\n', 4);
+                if (frontmatterEnd !== -1) {
+                    const frontmatter = fileContent.substring(0, frontmatterEnd);
+                    if (frontmatter.includes('tags:')) {
+                        const existingTags = extractExistingTags(frontmatter);
+                        
+                        // Count how many new tags we're adding
+                        const newTagsCount = tags.filter(tag => {
+                            const formattedTag = formatTag(tag, settings.tagCaseFormat);
+                            return !existingTags.some(existingTag => 
+                                existingTag.toLowerCase() === formattedTag.toLowerCase()
+                            );
+                        }).length;
+                        
+                        // Update the file with the generated tags
+                        const newContent = manageFrontmatterTags(
+                            fileContent, 
+                            tags, 
+                            settings.tagCaseFormat,
+                            mode
+                        );
+                        await app.vault.modify(file, newContent);
+                        
+                        // Show appropriate notification
+                        if (newTagsCount === 0) {
+                            new Notice(`No new tags to add to ${file.basename}`);
+                        } else {
+                            new Notice(`${newTagsCount} tag${newTagsCount > 1 ? 's' : ''} added to ${file.basename}`);
+                        }
+                        return;
+                    }
+                }
+            }
+            
+            // For replace mode or if there was no tags section
             const newContent = manageFrontmatterTags(
                 fileContent, 
                 tags, 
