@@ -7,6 +7,21 @@ import { generateGeminiTags } from './geminiApi';
 import { promptForManualTags } from './modals';
 
 /**
+ * Strip frontmatter from content to avoid confusing the AI
+ * @param content The content to strip frontmatter from
+ * @returns The content without frontmatter
+ */
+function stripFrontmatter(content: string): string {
+    if (content.startsWith('---\n')) {
+        const frontmatterEnd = content.indexOf('---\n', 4);
+        if (frontmatterEnd !== -1) {
+            return content.substring(frontmatterEnd + 4).trim();
+        }
+    }
+    return content;
+}
+
+/**
  * Core tag generation service that handles AI provider selection and error handling
  * @param text Text content to generate tags from
  * @param settings Plugin settings
@@ -22,6 +37,10 @@ export async function generateTags(text: string, settings: FileFrontmatterSettin
         // Show loading notification
         loadingNotice = new Notice(`Connecting to ${provider}... This may take up to 30 seconds`, 30000);
 
+        // Strip frontmatter to prevent AI from just returning existing tags
+        const cleanText = stripFrontmatter(text);
+        console.log('Stripping frontmatter before sending to AI');
+
         // Prepare the prompt by replacing variables
         const finalPrompt = settings.aiPrompt
             .replace('{{max_tags}}', settings.maxTags.toString())
@@ -34,7 +53,7 @@ export async function generateTags(text: string, settings: FileFrontmatterSettin
 
         while (!proceed) {
             // Generate tags based on the selected provider
-            const rawTags = await generateTagsForProvider(provider, text, settings, finalPrompt);
+            const rawTags = await generateTagsForProvider(provider, cleanText, settings, finalPrompt);
             passes++;
 
             // Verify tag integrity
@@ -209,6 +228,7 @@ export function manageFrontmatterTags(
 
             if (frontmatter.includes('tags:')) {
                 // Handle based on mode (append or replace)
+                console.log(mode);
                 if (mode === 'append') {
                     // Extract existing tags
                     const existingTags = extractExistingTags(frontmatter);
@@ -236,6 +256,7 @@ export function manageFrontmatterTags(
                 } else {
                     // Replace existing tags
                     const formattedTagsList = formatTagsAsYamlList(tags, tagCaseFormat);
+                   console.log(formattedTagsList);
                     // Replace the entire tags section - avoid using /s flag
                     const newFrontmatter = replaceTagsSection(frontmatter, formattedTagsList);
                     return newFrontmatter + restOfContent;
