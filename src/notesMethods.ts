@@ -122,6 +122,7 @@ async function createNoteContent(file: TFile, fileLink: string, settings: FileFr
             baseContent, 
             tags, 
             settings.tagCaseFormat, 
+            'replace',  // Always use replace mode for new notes
             settings.defaultTemplate, 
             templateVars
         );

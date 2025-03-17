@@ -86,22 +86,34 @@ export class MarkdownTagsModal extends Modal {
         contentEl.empty();
 
         contentEl.createEl('h2', { text: 'Generate Tags' });
-        contentEl.createEl('p', { text: 'Would you like to generate tags for this markdown file?' });
+        contentEl.createEl('p', { text: 'Generate tags for this note and append to or replace any existing tags' });
 
-        new Setting(contentEl)
-            .addButton(btn => btn
-                .setButtonText('Yes')
-                .setCta()
-                .onClick(() => {
-                    this.close();
-                    handleMarkdownTagGeneration(this.app, this.file, this.settings);
-                }))
-            .addButton(btn => btn
-                .setButtonText('No')
-                .onClick(() => {
-                    this.close();
-                    new Notice('Tag generation cancelled');
-                }));
+        const buttonContainer = new Setting(contentEl);
+        
+        // Add Append button
+        buttonContainer.addButton(btn => btn
+            .setButtonText('Append')
+            .setCta()
+            .onClick(() => {
+                this.close();
+                handleMarkdownTagGeneration(this.app, this.file, this.settings, 'append');
+            }));
+        
+        // Add Replace button
+        buttonContainer.addButton(btn => btn
+            .setButtonText('Replace')
+            .onClick(() => {
+                this.close();
+                handleMarkdownTagGeneration(this.app, this.file, this.settings, 'replace');
+            }));
+        
+        // Add Cancel button
+        buttonContainer.addButton(btn => btn
+            .setButtonText('Cancel')
+            .onClick(() => {
+                this.close();
+                new Notice('Tag generation cancelled');
+            }));
     }
 
     onClose() {

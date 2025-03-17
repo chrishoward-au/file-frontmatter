@@ -135,6 +135,7 @@ export function formatTagsAsYamlList(tags: string[], tagCaseFormat: TagCaseForma
  * @param content Current content of an existing file or base content for a new file
  * @param tags Tags to add to the file
  * @param tagCaseFormat Format to apply to tags
+ * @param mode How to handle existing tags: 'append' or 'replace'
  * @param templateStr Optional template string to use for new frontmatter
  * @param templateVars Optional additional template variables
  * @returns The updated content with frontmatter including tags
@@ -143,6 +144,7 @@ export function manageFrontmatterTags(
     content: string,
     tags: string[],
     tagCaseFormat: TagCaseFormat,
+    mode: 'append' | 'replace' = 'replace',
     templateStr?: string,
     templateVars?: Record<string, string>
 ): string {
@@ -158,11 +160,27 @@ export function manageFrontmatterTags(
             const restOfContent = content.substring(frontmatterEnd);
 
             if (frontmatter.includes('tags:')) {
-                // Replace existing tags
-                return frontmatter.replace(/tags:.*(\r?\n)/i, `tags: [${formattedTagsList}]$1`) + restOfContent;
+                // Handle based on mode (append or replace)
+                if (mode === 'append') {
+                    // Extract existing tags
+                    const tagsMatch = frontmatter.match(/tags:\s*\n((?:- .*\n)+)/i);
+                    if (tagsMatch && tagsMatch[1]) {
+                        // There are existing tags in YAML list format
+                        const existingTags = tagsMatch[1].trim();
+                        // Append new tags to existing ones
+                        return frontmatter.replace(/tags:\s*\n(?:- .*\n)+/i, `tags:\n${existingTags}\n${formattedTagsList}\n`) + restOfContent;
+                    } else {
+                        // There might be inline tags or empty tags
+                        // For safety, replace with the new tags (behave like replace)
+                        return frontmatter.replace(/tags:.*(\r?\n)/i, `tags:\n${formattedTagsList}$1`) + restOfContent;
+                    }
+                } else {
+                    // Replace existing tags
+                    return frontmatter.replace(/tags:.*(\r?\n)/i, `tags:\n${formattedTagsList}$1`) + restOfContent;
+                }
             } else {
                 // Add tags before the end of frontmatter
-                return frontmatter + `tags: [${formatTagsList}]\n` + restOfContent;
+                return frontmatter + `tags:\n${formattedTagsList}\n` + restOfContent;
             }
         } else {
             // Malformed frontmatter, add new one
@@ -205,8 +223,14 @@ function createNewFrontmatter(
  * @param app The Obsidian App instance
  * @param file The markdown file
  * @param settings Plugin settings
+ * @param mode How to handle existing tags: 'append' or 'replace'
  */
-export async function handleMarkdownTagGeneration(app: App, file: TFile, settings: FileFrontmatterSettings): Promise<void> {
+export async function handleMarkdownTagGeneration(
+    app: App, 
+    file: TFile, 
+    settings: FileFrontmatterSettings,
+    mode: 'append' | 'replace' = 'replace'
+): Promise<void> {
     try {
         // Read the file content
         const fileContent = await app.vault.read(file);
@@ -216,9 +240,14 @@ export async function handleMarkdownTagGeneration(app: App, file: TFile, setting
 
         if (tags && tags.length > 0) {
             // Update the file with the generated tags
-            const newContent = manageFrontmatterTags(fileContent, tags, settings.tagCaseFormat);
+            const newContent = manageFrontmatterTags(
+                fileContent, 
+                tags, 
+                settings.tagCaseFormat,
+                mode
+            );
             await app.vault.modify(file, newContent);
-            new Notice(`Tags added to ${file.basename}`);
+            new Notice(`Tags ${mode === 'append' ? 'added to' : 'updated for'} ${file.basename}`);
         } else {
             new Notice('No tags were generated');
         }
