@@ -126,7 +126,7 @@ function formatTagsList(
  * @returns Formatted tags as a YAML list
  */
 export function formatTagsAsYamlList(tags: string[], tagCaseFormat: TagCaseFormat): string {
-    return formatTagsList(tags, tagCaseFormat, '  - ', '"').join('\n');
+    return formatTagsList(tags, tagCaseFormat, '- ', '').join('\n');
 }
 
 
@@ -187,7 +187,7 @@ function createNewFrontmatter(
     const formattedTagsList = formatTagsAsYamlList(tags, tagCaseFormat);
 
     // If we have no template string, create default
-    templateStr = !templateStr ? '---\ntags: {{tags}}\n---\n' : templateStr;
+    templateStr = !templateStr ? '---\ntags:\n{{tags}}\n---\n' : templateStr;
     // Combine the provided template variables with the tags
     const allVars = {
         ...templateVars,
