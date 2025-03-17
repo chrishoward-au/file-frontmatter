@@ -3,7 +3,7 @@
  * Handles British/American spelling variations and other common variant spellings
  */
 
-import spellingVariants from './spellingVariants.json';
+import spellingVariants from '../spellingVariants.json';
 import { LanguagePreference } from './types';
 
 // Define the type for the spelling variants dictionary

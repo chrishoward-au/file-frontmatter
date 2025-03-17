@@ -8,3 +8,4 @@
 - review ai modules DRY and SRP
 - improve spelling variants structure 
 - add options if a file, to move files and notes to subfolders
+- create full file template

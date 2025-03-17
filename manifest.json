@@ -1,10 +1,11 @@
 {
 	"id": "tag-files-and-notes",
-	"name": "Tag Files & Notes",
-	"version": "0.1.25",
-	"minAppVersion": "1.8.9",
-	"description": "An Obsidian plugin that a creates notes with frontmatter and tags from files such as PDFs",
-	"author": "Your Name",
-	"authorUrl": "https://github.com/chrishoward-au",
+	"name": "Tags Files & Notes",
+	"version": "0.1.31",
+	"minAppVersion": "0.15.0",
+	"description": "Generate nicely formatted notes from files with AI-powered tag suggestions",
+	"author": "Chris Howard",
+	"authorUrl": "https://github.com/nwodtuhs",
+	"fundingUrl": "https://www.buymeacoffee.com/chrishoward",
 	"isDesktopOnly": false
 } 
