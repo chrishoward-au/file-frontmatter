@@ -1,6 +1,5 @@
 import { FileFrontmatterSettings } from './types';
 import { makeApiRequest, retryWithDelay } from './utils';
-import { processTagsWithRetry } from './tagsMethods';
 import { createRetryPrompt } from './openAiApi';
 
 /**
@@ -30,29 +29,6 @@ export async function generateGeminiTags(
         
         // Throw an error as this is currently a placeholder
         throw new Error('Gemini AI provider is not yet implemented');
-        
-        /* 
-        // The following code is commented out placeholder for the future implementation
-        
-        // Prepare the prompt
-        const finalPrompt = settings.aiPrompt
-            .replace('{{max_tags}}', settings.maxTags.toString())
-            .replace('{{max_words}}', settings.maxWordsPerTag.toString());
-        
-        // First attempt
-        const rawTags = await makeGeminiRequest(settings, finalPrompt, text);
-        
-        // Process tags with retry logic
-        return await processTagsWithRetry(
-            rawTags,
-            settings,
-            // Retry function
-            async () => {
-                const retryPrompt = createRetryPrompt(settings.maxTags, settings.maxWordsPerTag);
-                return await makeGeminiRequest(settings, retryPrompt, text);
-            }
-        );
-        */
     } catch (error) {
         console.error('Error generating tags with Gemini:', error);
         throw error;

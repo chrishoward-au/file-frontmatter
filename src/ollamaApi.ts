@@ -1,6 +1,5 @@
 import { FileFrontmatterSettings } from './types';
 import { makeApiRequest } from './utils';
-import { processTagsWithRetry } from './tagsMethods';
 import { createRetryPrompt } from './openAiApi';
 
 interface OllamaResponse {
@@ -21,7 +20,6 @@ export async function generateOllamaTags(
     settings: FileFrontmatterSettings
 ): Promise<string[]> {
     try {
-        
         // Prepare the prompt by replacing variables
         const finalPrompt = settings.aiPrompt
             .replace('{{max_tags}}', settings.maxTags.toString())
@@ -29,19 +27,8 @@ export async function generateOllamaTags(
         
         console.log('AI PROMPT', finalPrompt);
 
-        // First attempt
-        const rawTags = await makeOllamaRequest(settings.ollamaHost, settings.ollamaModel, finalPrompt, text);
-        
-        // Process tags with retry logic
-        return await processTagsWithRetry(
-            rawTags,
-            settings,
-            // Retry function
-            async () => {
-                const retryPrompt = createRetryPrompt(settings.maxTags, settings.maxWordsPerTag);
-                return await makeOllamaRequest(settings.ollamaHost, settings.ollamaModel, retryPrompt, text);
-            }
-        );
+        // Get tags from Ollama
+        return await makeOllamaRequest(settings.ollamaHost, settings.ollamaModel, finalPrompt, text);
     } catch (error) {
         console.error('Error generating tags with Ollama:', error);
         throw error;

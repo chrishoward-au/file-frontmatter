@@ -27,14 +27,38 @@ export async function generateTags(text: string, settings: FileFrontmatterSettin
             .replace('{{max_tags}}', settings.maxTags.toString())
             .replace('{{max_words}}', settings.maxWordsPerTag.toString());
         
-        // Generate tags based on the selected provider
-        const tags = await generateTagsForProvider(provider, text, settings, finalPrompt);
+        // Process to get valid tags with retry logic
+        let proceed = false;
+        let passes = 0;
+        let validTags: string[] = [];
         
-        // Process and validate the tags
-        return await processTagsWithRetry(tags, settings, async () => {
-            // Retry function - generate tags again with the same provider
-            return await generateTagsForProvider(provider, text, settings, finalPrompt);
-        });
+        while (!proceed) {
+            // Generate tags based on the selected provider
+            const rawTags = await generateTagsForProvider(provider, text, settings, finalPrompt);
+            passes++;
+            
+            // Verify tag integrity
+            const integrityResult = filterErroneousTags(rawTags, settings.maxWordsPerTag);
+            validTags = integrityResult.validTags;
+            
+            // If tags pass integrity check or we've made 2 attempts, proceed
+            proceed = !integrityResult.hasErroneousTags || passes >= 2;
+            
+            // If we're going to retry, log it
+            if (!proceed) {
+                console.log('Erroneous tags found, retrying...');
+            } else if (integrityResult.hasErroneousTags) {
+                // We're proceeding but found erroneous tags, notify user
+                console.log('Still found erroneous tags after retry, using valid tags only');
+                new Notice('Some tags were too long and have been skipped', 3000);
+            }
+        }
+        
+        // Limit to the maximum number of tags
+        const finalTags = validTags.slice(0, settings.maxTags);
+        console.log('Final tags:', finalTags);
+        
+        return finalTags;
     } catch (error) {
         console.error('Error generating tags:', error);
         throw error;
@@ -73,48 +97,6 @@ async function generateTagsForProvider(
         default:
             throw new Error(`Unknown AI provider: ${provider}`);
     }
-}
-
-/**
- * Process tags from any AI service with validation and retry logic
- * @param rawTags Initial tags from AI service
- * @param settings Plugin settings
- * @param retryFunction Function to call for retry attempt
- * @returns Processed and validated tags
- */
-export async function processTagsWithRetry(
-    rawTags: string[],
-    settings: FileFrontmatterSettings,
-    retryFunction: () => Promise<string[]>
-): Promise<string[]> {
-    
-    // Check for erroneous tags
-    let { validTags, hasErroneousTags } = filterErroneousTags(rawTags, settings.maxWordsPerTag);
-    
-    // If erroneous tags found, retry once
-    if (hasErroneousTags) {
-        console.log('Erroneous tags found, retrying...');
-        
-        // Retry using the provided retry function
-        const retryTags = await retryFunction();
-        console.log('Retry attempt tags:', retryTags);
-        
-        // Check again for erroneous tags
-        const retryResult = filterErroneousTags(retryTags, settings.maxWordsPerTag);
-        validTags = retryResult.validTags;
-        
-        // If still has erroneous tags, notify user
-        if (retryResult.hasErroneousTags) {
-            console.log('Still found erroneous tags after retry, using valid tags only');
-            new Notice('Some tags were too long and have been skipped', 3000);
-        }
-    }
-    
-    // Limit to the maximum number of tags
-    const finalTags = validTags.slice(0, settings.maxTags);
-    console.log('Final tags:', finalTags);
-    
-    return finalTags;
 }
 
 /**

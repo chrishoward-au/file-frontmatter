@@ -1,6 +1,5 @@
 import { FileFrontmatterSettings } from './types';
-import { makeApiRequest, retryWithDelay } from './utils';
-import { processTagsWithRetry } from './tagsMethods';
+import { makeApiRequest, retryWithDelay, filterErroneousTags } from './utils';
 
 interface OpenAIResponse {
     choices: Array<{
@@ -29,19 +28,9 @@ export async function generateOpenAITags(
     try {
         console.log('Generating tags using OpenAI');
         
-        // First attempt
+        // Get tags from OpenAI
         const rawTags = await makeOpenAIRequest(text, apiKey, prompt);
-        
-        // Process tags with retry logic
-        return await processTagsWithRetry(
-            rawTags,
-            { maxTags, maxWordsPerTag } as FileFrontmatterSettings,
-            // Retry function
-            async () => {
-                const retryPrompt = createRetryPrompt(maxTags, maxWordsPerTag);
-                return await makeOpenAIRequest(text, apiKey, retryPrompt);
-            }
-        );
+        return rawTags;
     } catch (error) {
         console.error('Error generating tags with OpenAI:', error);
         throw error;
