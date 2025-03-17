@@ -1,6 +1,6 @@
 {
-	"name": "file-to-note",
-	"version": "0.1.29",
+	"name": "tag-files-and-notes",
+	"version": "0.1.30",
 	"description": "Generate nicely formatted notes from files with AI-powered tag suggestions",
 	"main": "main.js",
 	"scripts": {
@@ -14,7 +14,7 @@
 		"plugin",
 		"frontmatter"
 	],
-	"author": "Your Name",
+	"author": "Chris Howard",
 	"license": "MIT",
 	"devDependencies": {
 		"@types/node": "^20.11.0",

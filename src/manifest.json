@@ -1,7 +1,7 @@
 {
-	"id": "file-to-note",
-	"name": "File to Note",
-	"version": "0.1.29",
+	"id": "tag-files-and-notes",
+	"name": "Tags Files & Notes",
+	"version": "0.1.30",
 	"minAppVersion": "0.15.0",
 	"description": "Generate nicely formatted notes from files with AI-powered tag suggestions",
 	"author": "Chris Howard",

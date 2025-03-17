@@ -1,6 +1,6 @@
-# File to Note Plugin for Obsidian
+# Tag Files and Notes Plugin for Obsidian
 
-An Obsidian plugin that a creates notes with frontmatter and tags from files such as PDFs
+An Obsidian plugin that a creates notes with frontmatter and tags from files such as PDFs. It can also be used to tag existing notes.
 
 ## Features
 

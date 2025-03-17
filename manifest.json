@@ -1,6 +1,6 @@
 {
-	"id": "file-to-note",
-	"name": "File to Note",
+	"id": "tag-files-and-notes",
+	"name": "Tag Files & Notes",
 	"version": "0.1.25",
 	"minAppVersion": "1.8.9",
 	"description": "An Obsidian plugin that a creates notes with frontmatter and tags from files such as PDFs",

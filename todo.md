@@ -6,3 +6,4 @@
 - ✅ strip URLs from extracted text before generating tags
 - add option to inline head/footer tags, or include in frontmatter
 - review ai modules DRY and SRP
+- improve spelling variants structure 
