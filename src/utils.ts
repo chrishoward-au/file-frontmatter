@@ -22,6 +22,21 @@ export function replaceTemplateVariables(template: string, variables: Record<str
 }
 
 /**
+ * Strip frontmatter from content
+ * @param content The content to strip frontmatter from
+ * @returns The content without frontmatter
+ */
+export function stripFrontmatter(content: string): string {
+    if (content.startsWith('---\n')) {
+        const frontmatterEnd = content.indexOf('---\n', 4);
+        if (frontmatterEnd !== -1) {
+            return content.substring(frontmatterEnd + 4).trim();
+        }
+    }
+    return content;
+}
+
+/**
  * Strip URLs from text
  * @param text The text to strip URLs from
  * @returns The text with URLs removed

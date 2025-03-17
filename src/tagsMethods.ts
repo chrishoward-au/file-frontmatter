@@ -1,25 +1,10 @@
 import { App, Notice, TFile } from 'obsidian';
 import { FileFrontmatterSettings, TagCaseFormat } from './types';
-import { formatTag, filterErroneousTags, replaceTemplateVariables } from './utils';
+import { formatTag, filterErroneousTags, replaceTemplateVariables, stripFrontmatter } from './utils';
 import { generateOpenAITags } from './openAiApi';
 import { generateOllamaTags } from './ollamaApi';
 import { generateGeminiTags } from './geminiApi';
 import { promptForManualTags } from './modals';
-
-/**
- * Strip frontmatter from content to avoid confusing the AI
- * @param content The content to strip frontmatter from
- * @returns The content without frontmatter
- */
-function stripFrontmatter(content: string): string {
-    if (content.startsWith('---\n')) {
-        const frontmatterEnd = content.indexOf('---\n', 4);
-        if (frontmatterEnd !== -1) {
-            return content.substring(frontmatterEnd + 4).trim();
-        }
-    }
-    return content;
-}
 
 /**
  * Core tag generation service that handles AI provider selection and error handling
