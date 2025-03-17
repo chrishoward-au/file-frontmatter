@@ -27,39 +27,13 @@ export async function generateTags(text: string, settings: FileFrontmatterSettin
             .replace('{{max_tags}}', settings.maxTags.toString())
             .replace('{{max_words}}', settings.maxWordsPerTag.toString());
         
-        let tags: string[] = [];
-        
         // Generate tags based on the selected provider
-        switch(provider) {
-            case 'openai':
-                if (!settings.openAIApiKey) {
-                    throw new Error('OpenAI API key is not set');
-                }
-                tags = await generateOpenAITags(text, settings.openAIApiKey, settings.maxTags, finalPrompt, settings.maxWordsPerTag);
-                break;
-            case 'ollama':
-                tags = await generateOllamaTags(text, settings);
-                break;
-            case 'gemini':
-                tags = await generateGeminiTags(text, settings);
-                break;
-            default:
-                throw new Error(`Unknown AI provider: ${provider}`);
-        }
+        const tags = await generateTagsForProvider(provider, text, settings, finalPrompt);
         
         // Process and validate the tags
         return await processTagsWithRetry(tags, settings, async () => {
             // Retry function - generate tags again with the same provider
-            switch(provider) {
-                case 'openai':
-                    return await generateOpenAITags(text, settings.openAIApiKey, settings.maxTags, finalPrompt, settings.maxWordsPerTag);
-                case 'ollama':
-                    return await generateOllamaTags(text, settings);
-                case 'gemini':
-                    return await generateGeminiTags(text, settings);
-                default:
-                    throw new Error(`Unknown AI provider: ${provider}`);
-            }
+            return await generateTagsForProvider(provider, text, settings, finalPrompt);
         });
     } catch (error) {
         console.error('Error generating tags:', error);
@@ -69,6 +43,35 @@ export async function generateTags(text: string, settings: FileFrontmatterSettin
         if (loadingNotice) {
             loadingNotice.hide();
         }
+    }
+}
+
+/**
+ * Helper function to generate tags based on the provider
+ * @param provider The AI provider to use
+ * @param text The text to generate tags from
+ * @param settings Plugin settings
+ * @param prompt The prompt to use
+ * @returns Array of generated tags
+ */
+async function generateTagsForProvider(
+    provider: string,
+    text: string,
+    settings: FileFrontmatterSettings,
+    prompt: string
+): Promise<string[]> {
+    switch(provider) {
+        case 'openai':
+            if (!settings.openAIApiKey) {
+                throw new Error('OpenAI API key is not set');
+            }
+            return await generateOpenAITags(text, settings.openAIApiKey, settings.maxTags, prompt, settings.maxWordsPerTag);
+        case 'ollama':
+            return await generateOllamaTags(text, settings);
+        case 'gemini':
+            return await generateGeminiTags(text, settings);
+        default:
+            throw new Error(`Unknown AI provider: ${provider}`);
     }
 }
 
@@ -115,29 +118,43 @@ export async function processTagsWithRetry(
 }
 
 /**
- * Format tags for inclusion in frontmatter
+ * Format a list of tags with consistent formatting
+ * @param tags Array of tags to format
+ * @param tagCaseFormat The format to apply to tags
+ * @param prefix Optional prefix to add before each tag (e.g., '  - ')
+ * @param wrapper Optional wrapper for each tag (e.g., '"')
+ * @returns Array of formatted tag strings
+ */
+function formatTagsList(
+    tags: string[], 
+    tagCaseFormat: TagCaseFormat, 
+    prefix: string = '', 
+    wrapper: string = ''
+): string[] {
+    return tags.map(tag => {
+        const formattedTag = formatTag(tag, tagCaseFormat);
+        return `${prefix}${wrapper}${formattedTag}${wrapper}`;
+    });
+}
+
+/**
+ * Format tags for inclusion in frontmatter as a YAML list
  * @param tags Array of tags
  * @param tagCaseFormat The format to apply to tags
  * @returns Formatted tags as a YAML list
  */
 export function formatTagsAsYamlList(tags: string[], tagCaseFormat: TagCaseFormat): string {
-    return tags
-        .map(tag => formatTag(tag, tagCaseFormat))
-        .map(tag => `  - "${tag}"`)
-        .join('\n');
+    return formatTagsList(tags, tagCaseFormat, '  - ', '"').join('\n');
 }
 
 /**
- * Format tags for frontmatter
+ * Format tags for frontmatter as an inline array
  * @param tags Array of tags
  * @param tagCaseFormat The format to apply to tags
- * @returns Formatted tags as a string
+ * @returns Formatted tags as a string for inline array
  */
 export function formatTagsForFrontmatter(tags: string[], tagCaseFormat: TagCaseFormat): string {
-    return tags
-        .map(tag => formatTag(tag, tagCaseFormat))
-        .map(tag => `"${tag}"`)
-        .join(', ');
+    return formatTagsList(tags, tagCaseFormat, '', '"').join(', ');
 }
 
 /**
@@ -182,10 +199,7 @@ export async function updateFileWithTags(
     tagCaseFormat: TagCaseFormat
 ): Promise<void> {
     // Format tags with the selected case format
-    const formattedTags = tags
-        .map(tag => formatTag(tag, tagCaseFormat))
-        .map(tag => `"${tag}"`)
-        .join(', ');
+    const formattedTags = formatTagsForFrontmatter(tags, tagCaseFormat);
     
     // Check if file already has frontmatter
     let newContent: string;
