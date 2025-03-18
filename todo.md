@@ -9,3 +9,4 @@
 - improve spelling variants structure 
 - add options if a file, to move files and notes to subfolders
 - create full file template
+- fix production not creating tags first run on files

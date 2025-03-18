@@ -1,11 +1,9 @@
 import { App, Notice, TFile } from 'obsidian';
-import { FileFrontmatterSettings, TagCaseFormat, LanguagePreference } from './types';
-import { formatTag, filterErroneousTags, replaceTemplateVariables, stripFrontmatter } from './utils';
-import { generateOpenAITags } from './openAiApi';
-import { generateOllamaTags } from './ollamaApi';
-import { generateGeminiTags } from './geminiApi';
+import { TagFilesAndNotesSettings, TagCaseFormat, LanguagePreference } from './types';
+import { formatTag, filterErroneousTags, replaceTemplateVariables, stripFrontmatter } from '../libs/utils';
+import { generateTagsForAI } from './aiApis';
 import { promptForManualTags } from './modals';
-import { normalizeSpelling, normalizeForComparison } from './spellingNormalizer';
+import { normalizeSpelling, normalizeForComparison } from '../libs/spellingNormalizer';
 
 /**
  * Core tag generation service that handles AI provider selection and error handling
@@ -14,7 +12,7 @@ import { normalizeSpelling, normalizeForComparison } from './spellingNormalizer'
  * @param app Obsidian app instance
  * @returns Array of generated tags
  */
-export async function generateTags(text: string, settings: FileFrontmatterSettings, app: App): Promise<string[]> {
+export async function generateTags(text: string, settings: TagFilesAndNotesSettings, app: App): Promise<string[]> {
     let loadingNotice: Notice | null = null;
     try {
         const provider = settings.aiProvider;
@@ -22,10 +20,6 @@ export async function generateTags(text: string, settings: FileFrontmatterSettin
 
         // Show loading notification
         loadingNotice = new Notice(`Connecting to ${provider}... This may take up to 30 seconds`, 30000);
-
-        // Strip frontmatter to prevent AI from just returning existing tags
-        const cleanText = stripFrontmatter(text);
-        console.log('Stripping frontmatter before sending to AI');
 
         // Prepare the prompt by replacing variables
         const finalPrompt = settings.aiPrompt
@@ -39,7 +33,7 @@ export async function generateTags(text: string, settings: FileFrontmatterSettin
 
         while (!proceed) {
             // Generate tags based on the selected provider
-            const rawTags = await generateTagsForProvider(provider, cleanText, settings, finalPrompt);
+            const rawTags = await generateTagsForAI(provider, text, settings, finalPrompt);
             passes++;
 
             // Verify tag integrity
@@ -75,34 +69,7 @@ export async function generateTags(text: string, settings: FileFrontmatterSettin
     }
 }
 
-/**
- * Helper function to generate tags based on the provider
- * @param provider The AI provider to use
- * @param text The text to generate tags from
- * @param settings Plugin settings
- * @param prompt The prompt to use
- * @returns Array of generated tags
- */
-async function generateTagsForProvider(
-    provider: string,
-    text: string,
-    settings: FileFrontmatterSettings,
-    prompt: string
-): Promise<string[]> {
-    switch (provider) {
-        case 'openai':
-            if (!settings.openAIApiKey) {
-                throw new Error('OpenAI API key is not set');
-            }
-            return await generateOpenAITags(text, settings.openAIApiKey, settings.maxTags, prompt, settings.maxWordsPerTag);
-        case 'ollama':
-            return await generateOllamaTags(text, settings);
-        case 'gemini':
-            return await generateGeminiTags(text, settings);
-        default:
-            throw new Error(`Unknown AI provider: ${provider}`);
-    }
-}
+
 
 /**
  * Format a list of tags with consistent formatting
@@ -369,7 +336,7 @@ function createNewFrontmatter(
 export async function handleMarkdownTagGeneration(
     app: App, 
     file: TFile, 
-    settings: FileFrontmatterSettings,
+    settings: TagFilesAndNotesSettings,
     mode: 'append' | 'replace' = 'replace'
 ): Promise<void> {
     try {

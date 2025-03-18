@@ -1,9 +1,10 @@
-import { App, Notice, TFile, TFolder, Vault } from 'obsidian';
-import { FileFrontmatterSettings, TagCaseFormat } from './types';
-import { formatDate, replaceTemplateVariables, formatTag } from './utils';
-import { generateTags, formatTagsAsYamlList, manageFrontmatterTags } from './tagsMethods';
-import { extractTextFromFile, isFileTypeSupported, isAIProviderConfigured } from './filesMethods';
+import { App, Notice, TFile} from 'obsidian';
+import { TagFilesAndNotesSettings } from './types';
+import { formatDate, isFileTypeSupported } from '../libs/utils';
+import { generateTags, manageFrontmatterTags } from './tags';
+import { extractTextFromFile, getTextExtractor } from './text';
 import { promptForManualTags } from './modals';
+import {isAIProviderConfigured} from './aiApis'
 
 /**
  * Creates a note alongside a PDF or other allowed file type
@@ -15,14 +16,22 @@ import { promptForManualTags } from './modals';
 export async function createNoteForFile(
     app: App,
     file: TFile,
-    settings: FileFrontmatterSettings
+    settings: TagFilesAndNotesSettings
 ): Promise<void> {
     try {
         // Check if the file type is accepted
         if (!isFileTypeSupported(file, settings.acceptedFileTypes)) {
-            new Notice(`File type '${file.extension}' is not in the list of accepted file types`);
+            new Notice(`File type '${file.extension}' is not supported. Supported types: ${settings.acceptedFileTypes.join(', ')}`);
             return;
         }
+
+        // Check if Text Extractor plugin is available
+        // This prevents file being created before text extraction.
+        if (!getTextExtractor(app)) {
+            new Notice('Text Extractor plugin is not installed or enabled. It is required for extracting text from non-markdown files.');
+            return;
+        }
+
 
         // Get the parent folder
         const folder = file.parent;
@@ -62,10 +71,11 @@ export async function createNoteForFile(
     }
 }
 
+
 /**
  * Creates the content for the new note
  */
-async function createNoteContent(file: TFile, fileLink: string, settings: FileFrontmatterSettings, app: App): Promise<string> {
+async function createNoteContent(file: TFile, fileLink: string, settings: TagFilesAndNotesSettings, app: App): Promise<string> {
     try {
         // Extract text from PDF
         console.log('Starting text extraction for file:', file.basename);

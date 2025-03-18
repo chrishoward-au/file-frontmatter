@@ -1,7 +1,7 @@
 {
 	"name": "tag-files-and-notes",
-	"version": "0.1.31",
-	"description": "Generate nicely formatted notes from files with AI-powered tag suggestions",
+	"version": "0.2.0",
+	"description": "Generate tags for notes and tagged notes from PDFs and images with AI-powered tag suggestions",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",

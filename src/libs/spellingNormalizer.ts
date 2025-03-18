@@ -3,8 +3,8 @@
  * Handles British/American spelling variations and other common variant spellings
  */
 
-import spellingVariants from '../spellingVariants.json';
-import { LanguagePreference } from './types';
+import spellingVariants from '../../spellingVariants.json';
+import { LanguagePreference } from '../handlers/types';
 
 // Define the type for the spelling variants dictionary
 type SpellingVariants = Record<string, string>;

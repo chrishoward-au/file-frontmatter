@@ -1,11 +1,11 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
-import FileFrontmatterPlugin from './main';
+import TagFilesAndNotesPlugin from '../main';
 import { DEFAULT_SETTINGS, AIProvider, TagCaseFormat, LanguagePreference } from './types';
 
-export class FileFrontmatterSettingTab extends PluginSettingTab {
-	plugin: FileFrontmatterPlugin;
+export class TagFilesAndNotesSettingTab extends PluginSettingTab {
+	plugin: TagFilesAndNotesPlugin;
 
-	constructor(app: App, plugin: FileFrontmatterPlugin) {
+	constructor(app: App, plugin: TagFilesAndNotesPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
@@ -85,8 +85,8 @@ export class FileFrontmatterSettingTab extends PluginSettingTab {
 			.setName('Language preference')
 			.setDesc('Choose between UK or US English for spelling variants in tag comparison')
 			.addDropdown(dropdown => dropdown
-				.addOption('uk', 'UK English (e.g., "colour", "centre")')
-				.addOption('us', 'US English (e.g., "color", "center")')
+				.addOption('uk', 'UK English')
+				.addOption('us', 'US English')
 				.setValue(this.plugin.settings.languagePreference)
 				.onChange(async (value: LanguagePreference) => {
 					this.plugin.settings.languagePreference = value;
@@ -113,6 +113,7 @@ export class FileFrontmatterSettingTab extends PluginSettingTab {
 				.addOption('openai', 'OpenAI')
 				.addOption('gemini', 'Google Gemini')
 				.addOption('ollama', 'Ollama (Local)')
+				.addOption('mistral', 'Mistral')
 				.setValue(this.plugin.settings.aiProvider)
 				.onChange(async (value: AIProvider) => {
 					this.plugin.settings.aiProvider = value;
@@ -177,6 +178,8 @@ export class FileFrontmatterSettingTab extends PluginSettingTab {
 						this.plugin.settings.ollamaModel = value;
 						await this.plugin.saveSettings();
 					}));
+		} else if (this.plugin.settings.aiProvider === 'mistral') {
+				// TODO: Mistral settings
 		}
 
 		// General Settings Section

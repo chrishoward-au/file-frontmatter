@@ -1,6 +1,6 @@
 import { App, Modal, Notice, Setting, TFile } from 'obsidian';
-import { FileFrontmatterSettings } from './types';
-import { handleMarkdownTagGeneration } from './tagsMethods';
+import { TagFilesAndNotesSettings } from './types';
+import { handleMarkdownTagGeneration } from './tags';
 
 /**
  * Modal for entering tags manually
@@ -73,9 +73,9 @@ export async function promptForManualTags(app: App): Promise<string[]> {
  */
 export class MarkdownTagsModal extends Modal {
     private file: any;
-    private settings: FileFrontmatterSettings;
+    private settings: TagFilesAndNotesSettings;
     
-    constructor(app: App, file: any, settings: FileFrontmatterSettings) {
+    constructor(app: App, file: any, settings: TagFilesAndNotesSettings) {
         super(app);
         this.file = file;
         this.settings = settings;
@@ -128,6 +128,6 @@ export class MarkdownTagsModal extends Modal {
  * @param file The markdown file
  * @param settings Plugin settings
  */
-export function openMarkdownTagsModal(app: App, file: any, settings: FileFrontmatterSettings): void {
+export function openMarkdownTagsModal(app: App, file: any, settings: TagFilesAndNotesSettings): void {
     new MarkdownTagsModal(app, file, settings).open();
 } 

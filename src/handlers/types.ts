@@ -4,7 +4,7 @@ export type AIProvider = 'openai' | 'gemini' | 'ollama';
 export type TagCaseFormat = 'lowercase' | 'uppercase' | 'titlecase' | 'retain';
 export type LanguagePreference = 'uk' | 'us';
 
-export interface FileFrontmatterSettings {
+export interface TagFilesAndNotesSettings {
 	defaultTemplate: string;
 	acceptedFileTypes: string[];
 	aiProvider: AIProvider;
@@ -21,7 +21,7 @@ export interface FileFrontmatterSettings {
 	languagePreference: LanguagePreference;
 }
 
-export const DEFAULT_SETTINGS: FileFrontmatterSettings = {
+export const DEFAULT_SETTINGS: TagFilesAndNotesSettings = {
 	defaultTemplate: '---\ntitle: {{title}}\ndate: {{date}}\ntags: []\n---',
 	acceptedFileTypes: ['pdf'],
 	aiProvider: 'openai',

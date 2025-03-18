@@ -1,9 +1,9 @@
 {
 	"id": "tag-files-and-notes",
-	"name": "Tags Files & Notes",
-	"version": "0.1.31",
+	"name": "Tag Files & Notes",
+	"version": "0.2.0",
 	"minAppVersion": "0.15.0",
-	"description": "Generate nicely formatted notes from files with AI-powered tag suggestions",
+	"description": "Generate tags for notes and tagged notes from PDFs and images with AI-powered tag suggestions",
 	"author": "Chris Howard",
 	"authorUrl": "https://github.com/nwodtuhs",
 	"fundingUrl": "https://www.buymeacoffee.com/chrishoward",

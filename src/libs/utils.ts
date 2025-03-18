@@ -1,5 +1,5 @@
-import { TagCaseFormat } from './types';
-import { requestUrl, RequestUrlParam, RequestUrlResponse, Notice } from 'obsidian';
+import { TagCaseFormat,TagFilesAndNotesSettings } from '../handlers/types';
+import { Notice, TFile } from 'obsidian';
 
 /**
  * Format a date as YYYY-MM-DD
@@ -126,39 +126,6 @@ export function formatTag(tag: string, caseFormat: TagCaseFormat = 'lowercase'):
     }
 }
 
-/**
- * Common function to make API requests with proper error handling
- * @param requestParams Request parameters for requestUrl
- * @param errorPrefix Prefix for error messages
- * @returns The response from the API
- */
-export async function makeApiRequest(
-    requestParams: RequestUrlParam,
-    errorPrefix: string = 'API'
-): Promise<RequestUrlResponse> {
-    try {
-        const response = await requestUrl(requestParams);
-        
-        if (response.status !== 200) {
-            let errorMessage = `${errorPrefix} request failed`;
-            try {
-                const errorData = response.json;
-                errorMessage = errorData.error?.message || `${errorPrefix} error (${response.status})`;
-            } catch (e) {
-                errorMessage = `${errorPrefix} error (${response.status})`;
-            }
-            throw new Error(errorMessage);
-        }
-        
-        return response;
-    } catch (error) {
-        // Enhance error with rate limiting information if applicable
-        if (error.message.includes('429')) {
-            error.message = `${errorPrefix} rate limit exceeded. Please try again later.`;
-        }
-        throw error;
-    }
-}
 
 /**
  * Add delay for rate limiting and other purposes
@@ -213,3 +180,14 @@ export async function retryWithDelay<T>(
     }
     throw lastError!; // We know it's not null here because we would have thrown earlier if no error occurred
 } 
+
+/**
+ * Checks if the file type is supported
+ * @param file The file to check
+ * @param acceptedFileTypes List of accepted file extensions
+ * @returns True if the file type is supported, false otherwise
+ */
+export function isFileTypeSupported(file: TFile, acceptedFileTypes: string[]): boolean {
+    return acceptedFileTypes.includes(file.extension.toLowerCase());
+}
+

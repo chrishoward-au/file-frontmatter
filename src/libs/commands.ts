@@ -1,14 +1,16 @@
 import { App, Notice, Plugin, TFile } from 'obsidian';
-import { FileFrontmatterSettings } from './types';
-import { isAIProviderConfigured, handleNonMarkdownFile, isFileTypeSupported } from './filesMethods';
-import { openMarkdownTagsModal } from './modals';
+import { TagFilesAndNotesSettings } from '../handlers/types';
+import { openMarkdownTagsModal } from '../handlers/modals';
+import {isAIProviderConfigured} from '../handlers/aiApis'
+import {isFileTypeSupported} from './utils'
+import {createNoteForFile} from '../handlers/notes'
 
 /**
  * Registers all plugin commands
  * @param plugin The plugin instance
  * @param settings The plugin settings
  */
-export function registerCommands(plugin: Plugin, settings: FileFrontmatterSettings): void {
+export function registerCommands(plugin: Plugin, settings: TagFilesAndNotesSettings): void {
     // Command to create a note for the selected file
     plugin.addCommand({
         id: 'create-note-for-file',
@@ -32,7 +34,7 @@ export function registerCommands(plugin: Plugin, settings: FileFrontmatterSettin
                 openMarkdownTagsModal(plugin.app, file, settings);
             } else {
                 // For other file types, create a note
-                handleNonMarkdownFile(plugin.app, file, settings);
+                createNoteForFile(plugin.app, file, settings);
             }
         }
     });
@@ -45,7 +47,7 @@ export function registerCommands(plugin: Plugin, settings: FileFrontmatterSettin
  * @param settings Plugin settings
  * @returns True if prerequisites are met, false otherwise
  */
-function validatePrerequisites(app: App, file: TFile | null, settings: FileFrontmatterSettings): boolean {
+function validatePrerequisites(app: App, file: TFile | null, settings: TagFilesAndNotesSettings): boolean {
     // Check for AI provider configuration
     if (!isAIProviderConfigured(settings)) {
         new Notice(`Please configure your ${settings.aiProvider} settings`);

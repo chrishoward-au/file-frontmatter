@@ -1,16 +1,16 @@
 import { Plugin } from 'obsidian';
-import { FileFrontmatterSettings, DEFAULT_SETTINGS } from './types';
-import { FileFrontmatterSettingTab } from './settings';
-import { registerCommands } from './commands';
+import { TagFilesAndNotesSettings, DEFAULT_SETTINGS } from './handlers/types';
+import { TagFilesAndNotesSettingTab as TagFilesAndNotesSettingTab } from './handlers/settings';
+import { registerCommands } from './libs/commands';
 
-export default class FileFrontmatterPlugin extends Plugin {
-	settings: FileFrontmatterSettings;
+export default class TagFilesAndNotesPlugin extends Plugin {
+	settings: TagFilesAndNotesSettings;
 
 	async onload() {
 		await this.loadSettings();
 
 		// Register the settings tab
-		this.addSettingTab(new FileFrontmatterSettingTab(this.app, this));
+		this.addSettingTab(new TagFilesAndNotesSettingTab(this.app, this));
 
 		// Register commands
 		registerCommands(this, this.settings);
