@@ -1,4 +1,4 @@
-import { TagCaseFormat,TagFilesAndNotesSettings } from '../handlers/types';
+import { TagCaseFormat, TagFilesAndNotesSettings } from '../handlers/types';
 import { Notice, TFile } from 'obsidian';
 
 /**
@@ -43,11 +43,11 @@ export function stripFrontmatter(content: string): string {
  */
 export function stripUrls(text: string): string {
     if (!text) return '';
-    
+
     // Regular expression to match URLs
     // This matches http, https, ftp URLs and also www.example.com style URLs
     const urlRegex = /(https?:\/\/|www\.)[^\s]+(\.[^\s]+){1,}[^\s.,;:?!)"']/gi;
-    
+
     // Replace URLs with empty string
     return text.replace(urlRegex, ' ');
 }
@@ -75,7 +75,7 @@ export function isValidTag(tag: string, maxWordsPerTag: number): boolean {
     if (maxWordsPerTag === 1) {
         return wordCount <= 2; // Allow up to two words for one-word requests
     }
-    
+
     return wordCount <= maxWordsPerTag;
 }
 
@@ -85,13 +85,13 @@ export function isValidTag(tag: string, maxWordsPerTag: number): boolean {
  * @param maxWordsPerTag Maximum words per tag setting
  * @returns Object containing valid tags and a flag indicating if any tags were erroneous
  */
-export function filterErroneousTags(tags: string[], maxWordsPerTag: number): { 
-    validTags: string[], 
-    hasErroneousTags: boolean 
+export function filterErroneousTags(tags: string[], maxWordsPerTag: number): {
+    validTags: string[],
+    hasErroneousTags: boolean
 } {
     const validTags = tags.filter(tag => isValidTag(tag, maxWordsPerTag));
     const hasErroneousTags = validTags.length < tags.length;
-    
+
     return { validTags, hasErroneousTags };
 }
 
@@ -107,7 +107,7 @@ export function filterErroneousTags(tags: string[], maxWordsPerTag: number): {
 export function formatTag(tag: string, caseFormat: TagCaseFormat = 'lowercase'): string {
     // First, clean the tag by removing quotes and replacing spaces with hyphens
     let formattedTag = tag.replace(/"/g, '').replace(/\s+/g, '-');
-    
+
     // Apply case formatting based on the setting
     switch (caseFormat) {
         case 'lowercase':
@@ -158,12 +158,12 @@ export async function retryWithDelay<T>(
             if (attempt > 0) {
                 console.log(`Retry attempt ${attempt} of ${retries}, waiting ${currentDelay}ms...`);
                 await delay(currentDelay);
-                
+
                 // Show retry notification if enabled
                 if (showNotice) {
                     new Notice(`Retrying operation (${attempt}/${retries})...`, 3000);
                 }
-                
+
                 currentDelay *= 2; // Double the delay for each retry
             }
             return await fn();
@@ -179,7 +179,7 @@ export async function retryWithDelay<T>(
         }
     }
     throw lastError!; // We know it's not null here because we would have thrown earlier if no error occurred
-} 
+}
 
 /**
  * Checks if the file type is supported

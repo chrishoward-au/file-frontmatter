@@ -179,7 +179,7 @@ export class TagFilesAndNotesSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					}));
 		} else if (this.plugin.settings.aiProvider === 'mistral') {
-				// TODO: Mistral settings
+			// TODO: Mistral settings
 		}
 
 		// General Settings Section

@@ -19,17 +19,17 @@ type SpellingVariants = Record<string, string>;
 export function normalizeSpelling(text: string, languagePreference: LanguagePreference = 'uk'): string {
     // Convert to lowercase for comparison
     const lowercased = text.toLowerCase();
-    
+
     // Get the variants dictionary
     const variants = spellingVariants as SpellingVariants;
-    
+
     // Check if this is a known spelling variant
     for (const [ukVariant, usVariant] of Object.entries(variants)) {
         // If it matches either variant (UK or US spelling)
         if (lowercased === ukVariant.toLowerCase() || lowercased === usVariant.toLowerCase()) {
             // Return the preferred spelling, preserving original case pattern
             const preferred = languagePreference === 'uk' ? ukVariant : usVariant;
-            
+
             // If original had first letter capitalized, capitalize the preferred version too
             if (text[0] === text[0].toUpperCase()) {
                 return preferred.charAt(0).toUpperCase() + preferred.slice(1);
@@ -37,7 +37,7 @@ export function normalizeSpelling(text: string, languagePreference: LanguagePref
             return preferred;
         }
     }
-    
+
     // If no variant is found, return the original text
     return text;
 }

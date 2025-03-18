@@ -1,10 +1,10 @@
-import { App, Notice, TFile} from 'obsidian';
+import { App, Notice, TFile } from 'obsidian';
 import { TagFilesAndNotesSettings } from './types';
 import { formatDate, isFileTypeSupported } from '../libs/utils';
 import { generateTags, manageFrontmatterTags } from './tags';
 import { extractTextFromFile, getTextExtractor } from './text';
 import { promptForManualTags } from './modals';
-import {isAIProviderConfigured} from './aiApis'
+import { isAIProviderConfigured } from './aiApis'
 
 /**
  * Creates a note alongside a PDF or other allowed file type
@@ -57,9 +57,9 @@ export async function createNoteForFile(
 
         // Create the note
         await app.vault.create(notePath, noteContent);
-        
+
         new Notice(`Created note for ${file.basename}`);
-        
+
         // Open the new note
         const newNote = app.vault.getAbstractFileByPath(notePath) as TFile;
         if (newNote) {
@@ -81,7 +81,7 @@ async function createNoteContent(file: TFile, fileLink: string, settings: TagFil
         console.log('Starting text extraction for file:', file.basename);
         const extractedText = await extractTextFromFile(app, file);
         console.log('Extracted text length:', extractedText?.length || 0);
-        
+
         if (!extractedText) {
             new Notice('No text could be extracted from the file');
             throw new Error('No text could be extracted from the file');
@@ -90,7 +90,7 @@ async function createNoteContent(file: TFile, fileLink: string, settings: TagFil
         // Generate tags if AI provider is configured
         console.log('AI Provider:', settings.aiProvider);
         let tags: string[] = [];
-        
+
         if (isAIProviderConfigured(settings)) {
             try {
                 tags = await generateTags(extractedText, settings, app);
@@ -109,31 +109,31 @@ async function createNoteContent(file: TFile, fileLink: string, settings: TagFil
                 }
             }
         }
-        
+
         // Add file extension as an additional tag
         tags.push(file.extension);
-        
+
         // Create base content without frontmatter
         let baseContent = `## ${file.basename}\n\n![[${fileLink}]]`;
-        
+
         // Only include extracted text if the setting is enabled
         if (settings.includeExtractedText) {
             baseContent += `\n\n## Extracted Text\n\n${extractedText}`;
         }
-        
+
         // Add template variables for the frontmatter
         const templateVars = {
             title: file.basename,
             date: formatDate()
         };
-        
+
         // Apply frontmatter with tags and template
         return manageFrontmatterTags(
-            baseContent, 
-            tags, 
-            settings.tagCaseFormat, 
+            baseContent,
+            tags,
+            settings.tagCaseFormat,
             'replace',  // Always use replace mode for new notes
-            settings.defaultTemplate, 
+            settings.defaultTemplate,
             templateVars
         );
     } catch (error) {

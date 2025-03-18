@@ -1,7 +1,7 @@
 import { Plugin } from 'obsidian';
 import { TagFilesAndNotesSettings, DEFAULT_SETTINGS } from './handlers/types';
 import { TagFilesAndNotesSettingTab as TagFilesAndNotesSettingTab } from './handlers/settings';
-import { registerCommands } from './libs/commands';
+import { registerCommands } from './handlers/commands';
 
 export default class TagFilesAndNotesPlugin extends Plugin {
 	settings: TagFilesAndNotesSettings;

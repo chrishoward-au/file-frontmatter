@@ -1,9 +1,9 @@
 import { App, Notice, Plugin, TFile } from 'obsidian';
-import { TagFilesAndNotesSettings } from '../handlers/types';
-import { openMarkdownTagsModal } from '../handlers/modals';
-import {isAIProviderConfigured} from '../handlers/aiApis'
-import {isFileTypeSupported} from './utils'
-import {createNoteForFile} from '../handlers/notes'
+import { TagFilesAndNotesSettings } from './types';
+import { openMarkdownTagsModal } from './modals';
+import { isAIProviderConfigured } from './aiApis'
+import { isFileTypeSupported } from '../libs/utils'
+import { createNoteForFile } from './notes'
 
 /**
  * Registers all plugin commands
@@ -18,16 +18,16 @@ export function registerCommands(plugin: Plugin, settings: TagFilesAndNotesSetti
         callback: () => {
             // Get the active file
             const activeFile = plugin.app.workspace.getActiveFile();
-            
+
             // Validate prerequisites
             if (!validatePrerequisites(plugin.app, activeFile, settings)) {
                 return;
             }
-            
+
             // At this point, activeFile is guaranteed to be non-null
             // because validatePrerequisites would have returned false otherwise
             const file = activeFile as TFile; // Type assertion
-            
+
             // Handle the file based on its type
             if (file.extension === 'md') {
                 // For markdown files, ask if the user wants to generate tags
@@ -53,18 +53,18 @@ function validatePrerequisites(app: App, file: TFile | null, settings: TagFilesA
         new Notice(`Please configure your ${settings.aiProvider} settings`);
         return false;
     }
-    
+
     // Check if a file is open
     if (!file) {
         new Notice('Please open a PDF or other supported file first');
         return false;
     }
-    
+
     // For non-markdown files, check if the file type is supported
     if (file.extension !== 'md' && !isFileTypeSupported(file, settings.acceptedFileTypes)) {
         new Notice(`File type '${file.extension}' is not supported. Supported types: ${settings.acceptedFileTypes.join(', ')}`);
         return false;
     }
-    
+
     return true;
 } 
