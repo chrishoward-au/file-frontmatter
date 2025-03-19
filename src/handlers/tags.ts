@@ -1,7 +1,7 @@
 import { App, Notice, TFile } from 'obsidian';
 import { TagFilesAndNotesSettings, TagCaseFormat, LanguagePreference } from './types';
 import { formatTag, filterErroneousTags, replaceTemplateVariables, stripFrontmatter } from '../libs/utils';
-import { generateTagsForAI } from './aiApis';
+import { getTagsFromAI } from './aiApis';
 import { promptForManualTags } from './modals';
 import { normalizeSpelling, normalizeForComparison } from '../libs/spellingNormalizer';
 
@@ -33,7 +33,7 @@ export async function generateTags(text: string, settings: TagFilesAndNotesSetti
 
         while (!proceed) {
             // Generate tags based on the selected provider
-            const rawTags = await generateTagsForAI(provider, text, settings, finalPrompt);
+            const rawTags = await getTagsFromAI(text, settings);
             passes++;
 
             // Verify tag integrity

@@ -1,12 +1,21 @@
 import { TagFilesAndNotesSettings } from './types';
 import { requestUrl, RequestUrlParam, RequestUrlResponse, Notice } from 'obsidian';
+import { retryWithDelay} from '../libs/utils'
 
 
-interface AiResponse {
+interface ollamaAiResponse {
     response: string;
     model: string;
     created_at: string;
     done: boolean;
+}
+
+interface OpenAIResponse {
+    choices: Array<{
+        message: {
+            content: string;
+        };
+    }>;
 }
 
 
@@ -58,6 +67,8 @@ export function isAIProviderConfigured(settings: TagFilesAndNotesSettings): bool
             return !!settings.googleClientId && !!settings.googleClientSecret;
         case 'ollama':
             return true; // Ollama doesn't need API keys
+        case 'mistral':
+            return !!settings.mistralAiApiKey;
         default:
             return false;
     }
@@ -69,11 +80,9 @@ export function isAIProviderConfigured(settings: TagFilesAndNotesSettings): bool
  * @param settings Plugin settings with Ollama configuration
  * @returns Array of generated tags
  */
-export async function generateTagsForAI(
-    provider: string,
+export async function getTagsFromAI(
     text: string,
     settings: TagFilesAndNotesSettings,
-    prompt: string
 ): Promise<string[]> {
     try {
         // Prepare the prompt by replacing variables
@@ -84,24 +93,33 @@ export async function generateTagsForAI(
         console.log('AI PROMPT', finalPrompt);
 
         // Get tags from Ollama
-        return await makeAiRequest(settings.aiProvider, settings.ollamaHost, settings.ollamaModel, finalPrompt, text);
+        switch (settings.aiProvider){
+            case 'ollama':
+                return await makeOllamaAiRequest(settings.aiProvider, settings.ollamaHost, settings.ollamaModel, finalPrompt, text);
+            case 'openai':
+                return await makeOpenAiRequest(settings.aiProvider,settings.openAIApiKey,finalPrompt, text)
+
+        }
     } catch (error) {
-        console.error('Error generating tags with ' + provider, error);
+        console.error('Error generating tags with ' + settings.aiProvider, error);
         throw error;
     }
+    return [];
 }
 
 
 /**
- * Make a request to the AI
+ * Make a request to the Ollama AI
  */
-async function makeAiRequest(
+async function makeOllamaAiRequest(
     provider: string,
     host: string,
     model: string,
     prompt: string,
     text: string
 ): Promise<string[]> {
+
+    
     const response = await makeApiRequest({
         url: `${host}/api/generate`,
         method: 'POST',
@@ -118,9 +136,9 @@ async function makeAiRequest(
         })
     }, provider);
 
-    const data = response.json as AiResponse;
+    const data = response.json as ollamaAiResponse;
     console.log(response);
-    console.log('Data from Ollama:', data);
+    console.log('Data from '+provider, data);
 
     // Parse the response to extract tags
     const tags = data.response
@@ -131,3 +149,45 @@ async function makeAiRequest(
     return tags;
 }
 
+
+/**
+ * Make a request to the OpenAI API
+ */
+async function makeOpenAiRequest(
+    provider: string,
+    text: string,
+    apiKey: string,
+    prompt: string
+): Promise<string[]> {
+    const makeRequest = async () => {
+        return await makeApiRequest({
+            url: 'https://api.openai.com/v1/chat/completions',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: "gpt-3.5-turbo",
+                messages: [
+                    {
+                        "role": "system",
+                        "content": "You are a helpful assistant that generates tags for documents. Return only the tags as requested, no other text."
+                    },
+                    {
+                        "role": "user",
+                        "content": `${prompt}\n\nText: ${text.slice(0, 4000)}` // Limit text length to avoid token limits
+                    }
+                ],
+                temperature: 0.3 // Lower temperature for more focused responses
+            })
+        }, provider);
+    };
+
+    const response = await retryWithDelay(makeRequest, 2, 5000);
+    const data = response.json as OpenAIResponse;
+    
+    return data.choices[0]?.message?.content?.split(',')
+        .map(tag => tag.trim())
+        .filter(tag => tag.length > 0) || [];
+} 

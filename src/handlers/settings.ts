@@ -179,6 +179,17 @@ export class TagFilesAndNotesSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					}));
 		} else if (this.plugin.settings.aiProvider === 'mistral') {
+			new Setting(containerEl)
+			.setName('Mistral API Key')
+			.setDesc('Enter your Mistral API key to enable automatic tag generation.')
+			.addText(text => text
+				.setPlaceholder('Enter your Mistral API key')
+				.setValue(this.plugin.settings.mistralAiApiKey)
+				.onChange(async (value) => {
+					this.plugin.settings.mistralAiApiKey = value;
+					await this.plugin.saveSettings();
+				}));
+
 			// TODO: Mistral settings
 		}
 
