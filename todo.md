@@ -1,3 +1,15 @@
+# TODO
+
+## Bugs
+- [ ] Fix issue with tags not being appended or replaced on notes properly
+      - Investigate why tag modification operations (append/replace) are not affecting note frontmatter
+      - Check tag comparison and frontmatter manipulation logic
+      - Verify if changes are being saved correctly to files
+
+## Features
+
+## Improvements
+
 - check if similar tag exists and use it
 - ✅ make convert to lowercase an option
 - ✅ fix tags returned as a single string, or multiple but some with more than one tag.
