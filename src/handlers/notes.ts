@@ -134,7 +134,8 @@ async function createNoteContent(file: TFile, fileLink: string, settings: TagFil
             settings.tagCaseFormat,
             'replace',  // Always use replace mode for new notes
             settings.defaultTemplate,
-            templateVars
+            templateVars,
+            settings.languagePreference
         );
     } catch (error) {
         console.error('Error creating note content:', error);
