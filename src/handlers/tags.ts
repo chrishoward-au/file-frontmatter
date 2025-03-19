@@ -4,13 +4,11 @@ import { formatTag, filterErroneousTags, replaceTemplateVariables, stripFrontmat
 import { getTagsFromAI } from './aiApis';
 import { promptForManualTags } from './modals';
 import { normalizeSpelling, normalizeForComparison } from '../libs/spellingNormalizer';
+import { ERROR_MESSAGES, TIMEOUTS, DEFAULT_VALUES } from '../libs/constants';
+import { handleOperationError, handleAIError } from '../libs/errorHandling';
 
 /**
  * Core tag generation service that handles AI provider selection and error handling
- * @param text Text content to generate tags from
- * @param settings Plugin settings
- * @param app Obsidian app instance
- * @returns Array of generated tags
  */
 export async function generateTags(text: string, settings: TagFilesAndNotesSettings, app: App): Promise<string[]> {
     let loadingNotice: Notice | null = null;
@@ -18,397 +16,209 @@ export async function generateTags(text: string, settings: TagFilesAndNotesSetti
         const provider = settings.aiProvider;
         console.log(`Generating tags using ${provider}`);
 
-        // Show loading notification
-        loadingNotice = new Notice(`Connecting to ${provider}... This may take up to 30 seconds`, 30000);
+        loadingNotice = new Notice(`Connecting to ${provider}... This may take up to 30 seconds`, TIMEOUTS.AI_REQUEST);
 
-        // Prepare the prompt by replacing variables
-        const finalPrompt = settings.aiPrompt
-            .replace('{{max_tags}}', settings.maxTags.toString())
-            .replace('{{max_words}}', settings.maxWordsPerTag.toString());
+        const finalPrompt = preparePrompt(settings);
+        const validTags = await generateValidTags(text, settings, finalPrompt);
 
-        // Process to get valid tags with retry logic
-        let proceed = false;
-        let passes = 0;
-        let validTags: string[] = [];
-
-        while (!proceed) {
-            // Generate tags based on the selected provider
-            const rawTags = await getTagsFromAI(text, settings);
-            passes++;
-
-            // Verify tag integrity
-            const integrityResult = filterErroneousTags(rawTags, settings.maxWordsPerTag);
-            validTags = integrityResult.validTags;
-
-            // If tags pass integrity check or we've made 2 attempts, proceed
-            proceed = !integrityResult.hasErroneousTags || passes >= 2;
-
-            // If we're going to retry, log it
-            if (!proceed) {
-                console.log('Erroneous tags found, retrying...');
-            } else if (integrityResult.hasErroneousTags) {
-                // We're proceeding but found erroneous tags, notify user
-                console.log('Still found erroneous tags after retry, using valid tags only');
-                new Notice('Some tags were too long and have been skipped', 3000);
-            }
-        }
-
-        // Limit to the maximum number of tags
-        const finalTags = validTags.slice(0, settings.maxTags);
-        console.log('Final tags:', finalTags);
-
-        return finalTags;
+        return validTags;
     } catch (error) {
-        console.error('Error generating tags:', error);
+        handleAIError(settings.aiProvider, error as Error, app);
         throw error;
     } finally {
-        // Clear the loading notice if it exists
         if (loadingNotice) {
             loadingNotice.hide();
         }
     }
 }
 
-
-
 /**
- * Format a list of tags with consistent formatting
- * @param tags Array of tags to format
- * @param tagCaseFormat The format to apply to tags
- * @param prefix Optional prefix to add before each tag (e.g., '  - ')
- * @param wrapper Optional wrapper for each tag (e.g., '"')
- * @returns Array of formatted tag strings
+ * Prepare the AI prompt with variables
  */
-function formatTagsList(
-    tags: string[],
-    tagCaseFormat: TagCaseFormat,
-    prefix: string = '',
-    wrapper: string = ''
-): string[] {
-    return tags.map(tag => {
-        const formattedTag = formatTag(tag, tagCaseFormat);
-        return `${prefix}${wrapper}${formattedTag}${wrapper}`;
-    });
+function preparePrompt(settings: TagFilesAndNotesSettings): string {
+    return settings.aiPrompt
+        .replace('{{max_tags}}', settings.maxTags.toString())
+        .replace('{{max_words}}', settings.maxWordsPerTag.toString());
 }
 
 /**
- * Format tags for inclusion in frontmatter as a YAML list
- * @param tags Array of tags
- * @param tagCaseFormat The format to apply to tags
- * @returns Formatted tags as a YAML list
+ * Generate valid tags with retry logic
  */
-export function formatTagsAsYamlList(tags: string[], tagCaseFormat: TagCaseFormat): string {
-    return formatTagsList(tags, tagCaseFormat, '- ', '').join('\n');
+async function generateValidTags(text: string, settings: TagFilesAndNotesSettings, prompt: string): Promise<string[]> {
+    let passes = 0;
+    let validTags: string[] = [];
+
+    while (passes < DEFAULT_VALUES.MAX_RETRIES) {
+        const rawTags = await getTagsFromAI(text, settings);
+        passes++;
+
+        const integrityResult = filterErroneousTags(rawTags, settings.maxWordsPerTag);
+        validTags = integrityResult.validTags;
+
+        if (!integrityResult.hasErroneousTags) {
+            return validTags;
+        }
+
+        console.log('Erroneous tags found, retrying...');
+        await new Promise(resolve => setTimeout(resolve, TIMEOUTS.AI_RETRY_DELAY));
+    }
+
+    console.log('Still found erroneous tags after retry, using valid tags only');
+    return validTags;
 }
 
 /**
- * Extract tags from frontmatter content
- * @param frontmatter The frontmatter content
- * @returns Array of extracted tags
+ * Handle tag generation for markdown files
  */
-function extractExistingTags(frontmatter: string): string[] {
-    const tags: string[] = [];
-    
-    // Try to match YAML list format first (most common)
-    // Format: tags:\n- tag1\n- tag2
-    const yamlListMatch = frontmatter.match(/tags:\s*\n((?:\s*-\s*["']?(.*?)["']?\s*\n)+)/i);
-    if (yamlListMatch && yamlListMatch[1]) {
-        const yamlListContent = yamlListMatch[1];
-        // Use a regular for loop instead of matchAll which requires ES2018+
-        const regex = /\s*-\s*["']?(.*?)["']?\s*\n/gi;
-        let match;
-        while ((match = regex.exec(yamlListContent)) !== null) {
-            if (match[1]) {
-                tags.push(match[1].trim());
-            }
-        }
-        return tags;
-    }
-    
-    // Try to match inline array format
-    // Format: tags: [tag1, tag2]
-    const inlineArrayMatch = frontmatter.match(/tags:\s*\[(.*?)\]/i);
-    if (inlineArrayMatch && inlineArrayMatch[1]) {
-        const inlineTags = inlineArrayMatch[1].split(',');
-        for (const tag of inlineTags) {
-            // Remove quotes and trim
-            const cleanTag = tag.replace(/["']/g, '').trim();
-            if (cleanTag) {
-                tags.push(cleanTag);
-            }
-        }
-        return tags;
-    }
-    
-    // Try to match single tag format
-    // Format: tags: tag1
-    const singleTagMatch = frontmatter.match(/tags:\s*(.*?)(?:\n|$)/i);
-    if (singleTagMatch && singleTagMatch[1]) {
-        const singleTag = singleTagMatch[1].trim();
-        if (singleTag && singleTag !== "[]") {
-            tags.push(singleTag.replace(/["']/g, ''));
-        }
-    }
-    
-    return tags;
-}
-
-/**
- * Centralized function to manage frontmatter tags in Obsidian notes
- * @param content Current content of an existing file or base content for a new file
- * @param tags Tags to add to the file
- * @param tagCaseFormat Format to apply to tags
- * @param mode How to handle existing tags: 'append' or 'replace'
- * @param templateStr Optional template string to use for new frontmatter
- * @param templateVars Optional additional template variables
- * @param languagePreference Language preference for spelling normalization
- * @returns The updated content with frontmatter including tags
- */
-export function manageFrontmatterTags(
-    content: string,
-    tags: string[],
-    tagCaseFormat: TagCaseFormat,
-    mode: 'append' | 'replace' = 'replace',
-    templateStr?: string,
-    templateVars?: Record<string, string>,
-    languagePreference?: LanguagePreference
-): string {
-    // Use UK as the default language preference if not specified
-    const langPref = languagePreference || 'uk';
-
-    // Check if content already has frontmatter
-    if (content.startsWith('---\n')) {
-        // Content has frontmatter, update or add tags
-        const frontmatterEnd = content.indexOf('---\n', 4);
-        if (frontmatterEnd !== -1) {
-            const frontmatter = content.substring(0, frontmatterEnd);
-            const restOfContent = content.substring(frontmatterEnd);
-
-            if (frontmatter.includes('tags:')) {
-                // Handle based on mode (append or replace)
-                console.log(mode);
-                if (mode === 'append') {
-                    // Extract existing tags
-                    const existingTags = extractExistingTags(frontmatter);
-                    console.log('Existing tags:', existingTags);
-                    
-                    // Normalize existing tags according to language preference
-                    const normalizedExistingTags = existingTags.map(tag => 
-                        normalizeSpelling(tag, langPref)
-                    );
-                    
-                    // Filter out and normalize new tags
-                    const newTags = tags.filter(tag => {
-                        const formattedTag = formatTag(tag, tagCaseFormat);
-                        // Normalize the tag according to language preference
-                        const normalizedTag = normalizeSpelling(formattedTag, langPref);
-                        
-                        // Check if this tag already exists (after normalization)
-                        const normalizedLowerTag = normalizeForComparison(normalizedTag);
-                        const isDuplicate = normalizedExistingTags.some(existingTag => 
-                            normalizeForComparison(existingTag) === normalizedLowerTag
-                        );
-                        
-                        if (isDuplicate) {
-                            console.log(`Skipping duplicate: "${formattedTag}" matches existing tag after normalization`);
-                            return false;
-                        }
-                        return true;
-                    });
-                    
-                    console.log('New tags to add:', newTags);
-                    
-                    // Combine existing and new tags, using normalized versions of the existing tags
-                    const combinedTags = [...normalizedExistingTags, ...newTags.map(t => normalizeSpelling(formatTag(t, tagCaseFormat), langPref))];
-                    
-                    // Format the combined tags
-                    const formattedTagsList = formatTagsAsYamlList(combinedTags, tagCaseFormat);
-                    
-                    // Replace the entire tags section - avoid using /s flag
-                    let newFrontmatter = replaceTagsSection(frontmatter, formattedTagsList);
-                    
-                    return newFrontmatter + restOfContent;
-                } else {
-                    // Normalize all tags according to language preference for replace mode
-                    const normalizedTags = tags.map(tag => 
-                        normalizeSpelling(formatTag(tag, tagCaseFormat), langPref)
-                    );
-                    
-                    // Replace existing tags
-                    const formattedTagsList = formatTagsAsYamlList(normalizedTags, tagCaseFormat);
-                    console.log(formattedTagsList);
-                    // Replace the entire tags section - avoid using /s flag
-                    const newFrontmatter = replaceTagsSection(frontmatter, formattedTagsList);
-                    return newFrontmatter + restOfContent;
-                }
-            } else {
-                // Add tags before the end of frontmatter
-                // Normalize all tags according to language preference
-                const normalizedTags = tags.map(tag => 
-                    normalizeSpelling(formatTag(tag, tagCaseFormat), langPref)
-                );
-                const formattedTagsList = formatTagsAsYamlList(normalizedTags, tagCaseFormat);
-                return frontmatter + `tags:\n${formattedTagsList}\n` + restOfContent;
-            }
-        } else {
-            // Malformed frontmatter, add new one
-            // Normalize tags according to language preference
-            const normalizedTags = tags.map(tag => 
-                normalizeSpelling(formatTag(tag, tagCaseFormat), langPref)
-            );
-            return createNewFrontmatter(content, normalizedTags, tagCaseFormat, templateStr, templateVars);
-        }
-    } else {
-        // No frontmatter, add new one
-        // Normalize tags according to language preference
-        const normalizedTags = tags.map(tag => 
-            normalizeSpelling(formatTag(tag, tagCaseFormat), langPref)
-        );
-        return createNewFrontmatter(content, normalizedTags, tagCaseFormat, templateStr, templateVars);
-    }
-}
-
-/**
- * Helper function to replace the tags section in frontmatter without using /s flag
- */
-function replaceTagsSection(frontmatter: string, formattedTagsList: string): string {
-    // Try to find the tags section and replace it
-    const tagsStartIndex = frontmatter.toLowerCase().indexOf('tags:');
-    if (tagsStartIndex === -1) return frontmatter;
-    
-    // Find where the tags section ends (next property or end of frontmatter)
-    let tagsEndIndex = frontmatter.indexOf('\n', tagsStartIndex);
-    // Look for the next property or end of frontmatter
-    while (tagsEndIndex < frontmatter.length - 1) {
-        // Check if the next line starts a new property or ends the frontmatter
-        const nextLineStart = frontmatter.indexOf('\n', tagsEndIndex + 1);
-        if (nextLineStart === -1) break;
+export async function handleMarkdownTagGeneration(
+    app: App,
+    file: TFile,
+    settings: TagFilesAndNotesSettings,
+    mode: 'append' | 'replace' = 'append'
+): Promise<void> {
+    try {
+        const content = await app.vault.read(file);
+        const cleanedContent = stripFrontmatter(content);
         
-        const nextLine = frontmatter.substring(tagsEndIndex + 1, nextLineStart).trim();
-        // If it's a new property (contains a colon) or end of frontmatter (---)
-        if (nextLine.includes(':') || nextLine === '---') {
-            tagsEndIndex = tagsEndIndex + 1; // Include the newline
-            break;
+        const tags = await generateTags(cleanedContent, settings, app);
+        if (!tags.length) {
+            new Notice(ERROR_MESSAGES.AI_RESPONSE_EMPTY);
+            return;
         }
-        // Otherwise, it's part of the tags section
-        tagsEndIndex = nextLineStart;
+
+        const updatedContent = await manageFrontmatterTags(
+            content,
+            tags,
+            settings.tagCaseFormat,
+            mode,
+            settings.defaultTemplate,
+            {
+                title: file.basename,
+                date: new Date().toISOString().split('T')[0]
+            },
+            settings.languagePreference
+        );
+
+        await app.vault.modify(file, updatedContent);
+        notifyTagUpdate(tags.length, file.name, mode);
+    } catch (error) {
+        handleOperationError('Tag generation', error as Error, app);
     }
-    
-    // Replace just the tags section
-    return frontmatter.substring(0, tagsStartIndex) + 
-           `tags:\n${formattedTagsList}` + 
-           frontmatter.substring(tagsEndIndex);
 }
 
 /**
- * Helper function to create new frontmatter
+ * Manage frontmatter tags in a file
+ */
+export async function manageFrontmatterTags(
+    content: string,
+    newTags: string[],
+    tagCaseFormat: TagCaseFormat,
+    mode: 'append' | 'replace',
+    templateStr: string,
+    templateVars: Record<string, string>,
+    languagePreference: LanguagePreference
+): Promise<string> {
+    if (hasFrontmatter(content)) {
+        return updateExistingFrontmatter(content, newTags, tagCaseFormat, mode, languagePreference);
+    } else {
+        return createNewFrontmatter(content, newTags, tagCaseFormat, templateStr, templateVars);
+    }
+}
+
+/**
+ * Check if content has frontmatter
+ */
+function hasFrontmatter(content: string): boolean {
+    return content.startsWith('---\n');
+}
+
+/**
+ * Update existing frontmatter with new tags
+ */
+function updateExistingFrontmatter(
+    content: string,
+    newTags: string[],
+    tagCaseFormat: TagCaseFormat,
+    mode: 'append' | 'replace',
+    languagePreference: LanguagePreference
+): string {
+    const frontmatterEnd = content.indexOf('---\n', 4);
+    if (frontmatterEnd === -1) return content;
+
+    const frontmatter = content.substring(0, frontmatterEnd + 4);
+    const body = content.substring(frontmatterEnd + 4);
+
+    const existingTags = extractExistingTags(frontmatter);
+    const finalTags = mode === 'append' 
+        ? mergeTags(existingTags, newTags, languagePreference)
+        : newTags;
+
+    const updatedFrontmatter = updateFrontmatterTags(frontmatter, finalTags, tagCaseFormat);
+    return updatedFrontmatter + body;
+}
+
+/**
+ * Create new frontmatter with tags
  */
 function createNewFrontmatter(
     content: string,
     tags: string[],
     tagCaseFormat: TagCaseFormat,
-    templateStr?: string,
-    templateVars?: Record<string, string>
+    templateStr: string,
+    templateVars: Record<string, string>
 ): string {
-    const formattedTagsList = formatTagsAsYamlList(tags, tagCaseFormat);
-
-    // If we have no template string, create default
-    templateStr = !templateStr ? '---\ntags:\n{{tags}}\n---\n' : templateStr;
-    // Combine the provided template variables with the tags
-    const allVars = {
+    const formattedTags = formatTagsAsYamlList(tags, tagCaseFormat);
+    const frontmatter = replaceTemplateVariables(templateStr, {
         ...templateVars,
-        tags: formattedTagsList
-    };
-
-    const frontmatter = replaceTemplateVariables(templateStr, allVars);
-
-    return `${frontmatter}\n\n${content}`;
-
+        tags: formattedTags
+    });
+    return frontmatter + '\n\n' + content;
 }
 
 /**
- * Handles the process of generating tags for a markdown file
- * @param app The Obsidian App instance
- * @param file The markdown file
- * @param settings Plugin settings
- * @param mode How to handle existing tags: 'append' or 'replace'
+ * Extract existing tags from frontmatter
  */
-export async function handleMarkdownTagGeneration(
-    app: App, 
-    file: TFile, 
-    settings: TagFilesAndNotesSettings,
-    mode: 'append' | 'replace' = 'replace'
-): Promise<void> {
-    try {
-        // Read the file content
-        const fileContent = await app.vault.read(file);
+function extractExistingTags(frontmatter: string): string[] {
+    const tagsMatch = frontmatter.match(/tags:\s*\[(.*?)\]/);
+    if (!tagsMatch) return [];
 
-        // Generate tags - generateTags already handles loading notices
-        const tags = await generateTags(fileContent, settings, app);
+    return tagsMatch[1]
+        .split(',')
+        .map(tag => tag.trim().replace(/^['"]|['"]$/g, ''))
+        .filter(tag => tag);
+}
 
-        if (tags && tags.length > 0) {
-            // If in append mode, check if we're actually adding any new tags
-            if (mode === 'append') {
-                const frontmatterEnd = fileContent.indexOf('---\n', 4);
-                if (frontmatterEnd !== -1) {
-                    const frontmatter = fileContent.substring(0, frontmatterEnd);
-                    if (frontmatter.includes('tags:')) {
-                        const existingTags = extractExistingTags(frontmatter);
-                        
-                        // Normalize existing tags
-                        const normalizedExistingTags = existingTags.map(tag => 
-                            normalizeSpelling(tag, settings.languagePreference)
-                        );
-                        
-                        // Count how many new tags we're adding
-                        const newTagsCount = tags.filter(tag => {
-                            const formattedTag = formatTag(tag, settings.tagCaseFormat);
-                            const normalizedTag = normalizeSpelling(formattedTag, settings.languagePreference);
-                            return !normalizedExistingTags.some(existingTag => 
-                                normalizeForComparison(existingTag) === normalizeForComparison(normalizedTag)
-                            );
-                        }).length;
-                        
-                        // Update the file with the generated tags
-                        const newContent = manageFrontmatterTags(
-                            fileContent, 
-                            tags, 
-                            settings.tagCaseFormat,
-                            mode,
-                            undefined,
-                            undefined,
-                            settings.languagePreference
-                        );
-                        await app.vault.modify(file, newContent);
-                        
-                        // Show appropriate notification
-                        if (newTagsCount === 0) {
-                            new Notice(`No new tags to add to ${file.basename}`);
-                        } else {
-                            new Notice(`${newTagsCount} tag${newTagsCount > 1 ? 's' : ''} added to ${file.basename}`);
-                        }
-                        return;
-                    }
-                }
-            }
-            
-            // For replace mode or if there was no tags section
-            const newContent = manageFrontmatterTags(
-                fileContent, 
-                tags, 
-                settings.tagCaseFormat,
-                mode,
-                undefined,
-                undefined,
-                settings.languagePreference
-            );
-            await app.vault.modify(file, newContent);
-            new Notice(`Tags ${mode === 'append' ? 'added to' : 'updated for'} ${file.basename}`);
-        } else {
-            new Notice('No tags were generated');
-        }
-    } catch (error) {
-        console.error('Error handling markdown tag generation:', error);
-        new Notice(`Error: ${error.message}`);
+/**
+ * Merge new tags with existing tags, handling duplicates
+ */
+function mergeTags(existingTags: string[], newTags: string[], languagePreference: LanguagePreference): string[] {
+    const normalizedExisting = new Set(existingTags.map(tag => normalizeForComparison(tag)));
+    const uniqueNewTags = newTags.filter(tag => !normalizedExisting.has(normalizeForComparison(tag)));
+    return [...existingTags, ...uniqueNewTags];
+}
+
+/**
+ * Update frontmatter with new tags
+ */
+function updateFrontmatterTags(frontmatter: string, tags: string[], tagCaseFormat: TagCaseFormat): string {
+    const formattedTags = formatTagsAsYamlList(tags, tagCaseFormat);
+    return frontmatter.replace(/tags:\s*\[.*?\]/, `tags: ${formattedTags}`);
+}
+
+/**
+ * Format tags as YAML list
+ */
+function formatTagsAsYamlList(tags: string[], tagCaseFormat: TagCaseFormat): string {
+    return `[${tags.map(tag => `"${formatTag(tag, tagCaseFormat)}"`).join(', ')}]`;
+}
+
+/**
+ * Notify user about tag updates
+ */
+function notifyTagUpdate(tagCount: number, filename: string, mode: 'append' | 'replace'): void {
+    if (mode === 'append' && tagCount === 0) {
+        new Notice(ERROR_MESSAGES.NO_NEW_TAGS(filename));
+    } else {
+        new Notice(ERROR_MESSAGES.TAGS_ADDED(tagCount, filename));
     }
 } 
