@@ -148,12 +148,20 @@ function updateExistingFrontmatter(
     const frontmatter = content.substring(0, frontmatterEnd + 4);
     const body = content.substring(frontmatterEnd + 4);
 
+    console.log('Original frontmatter:', frontmatter);
+    
     const existingTags = extractExistingTags(frontmatter);
+    console.log('Existing tags:', existingTags);
+    
     const finalTags = mode === 'append' 
         ? mergeTags(existingTags, newTags, languagePreference)
         : newTags;
+    
+    console.log('Final tags to add:', finalTags);
 
     const updatedFrontmatter = updateFrontmatterTags(frontmatter, finalTags, tagCaseFormat);
+    console.log('Updated frontmatter:', updatedFrontmatter);
+
     return updatedFrontmatter + body;
 }
 
@@ -179,13 +187,43 @@ function createNewFrontmatter(
  * Extract existing tags from frontmatter
  */
 function extractExistingTags(frontmatter: string): string[] {
-    const tagsMatch = frontmatter.match(/tags:\s*\[(.*?)\]/);
-    if (!tagsMatch) return [];
-
-    return tagsMatch[1]
-        .split(',')
-        .map(tag => tag.trim().replace(/^['"]|['"]$/g, ''))
-        .filter(tag => tag);
+    // Try to match YAML list format first (most common)
+    // Format: tags:\n- tag1\n- tag2
+    const yamlListMatch = frontmatter.match(/tags:\s*\n((?:\s*-\s*["']?(.*?)["']?\s*\n)+)/i);
+    if (yamlListMatch && yamlListMatch[1]) {
+        const yamlListContent = yamlListMatch[1];
+        const regex = /\s*-\s*["']?(.*?)["']?\s*\n/gi;
+        let match;
+        const tags: string[] = [];
+        while ((match = regex.exec(yamlListContent)) !== null) {
+            if (match[1]) {
+                tags.push(match[1].trim());
+            }
+        }
+        return tags;
+    }
+    
+    // Try to match inline array format
+    // Format: tags: [tag1, tag2]
+    const inlineArrayMatch = frontmatter.match(/tags:\s*\[(.*?)\]/i);
+    if (inlineArrayMatch && inlineArrayMatch[1]) {
+        return inlineArrayMatch[1]
+            .split(',')
+            .map(tag => tag.trim().replace(/^['"]|['"]$/g, ''))
+            .filter(tag => tag);
+    }
+    
+    // Try to match single tag format
+    // Format: tags: tag1
+    const singleTagMatch = frontmatter.match(/tags:\s*(.*?)(?:\n|$)/i);
+    if (singleTagMatch && singleTagMatch[1]) {
+        const singleTag = singleTagMatch[1].trim();
+        if (singleTag && singleTag !== "[]") {
+            return [singleTag.replace(/["']/g, '')];
+        }
+    }
+    
+    return [];
 }
 
 /**
@@ -202,7 +240,15 @@ function mergeTags(existingTags: string[], newTags: string[], languagePreference
  */
 function updateFrontmatterTags(frontmatter: string, tags: string[], tagCaseFormat: TagCaseFormat): string {
     const formattedTags = formatTagsAsYamlList(tags, tagCaseFormat);
-    return frontmatter.replace(/tags:\s*\[.*?\]/, `tags: ${formattedTags}`);
+    
+    // Check if tags section exists
+    if (frontmatter.includes('tags:')) {
+        // Replace existing tags section
+        return frontmatter.replace(/tags:\s*\[.*?\]/, `tags: ${formattedTags}`);
+    } else {
+        // Add tags section before the end of frontmatter
+        return frontmatter.replace(/---\n$/, `tags: ${formattedTags}\n---\n`);
+    }
 }
 
 /**
