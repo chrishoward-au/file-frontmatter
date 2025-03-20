@@ -30,7 +30,7 @@ export const DEFAULT_SETTINGS: TagFilesAndNotesSettings = {
 	mistralAiApiKey:'',
 	maxTags: 5,
 	includeExtractedText: false,
-	aiPrompt: 'Generate {{max_tags}} relevant tags for this text. Each tag should have no more than {{max_words}} words. Return ONLY a comma-separated list of tags in this exact format: "tag1, tag2, tag3". Do not include any other text, explanations, or formatting.',
+	aiPrompt: 'Generate {{max_tags}} relevant tags for this text. Each tag MUST have {{max_words}} words or fewer. Return ONLY a comma-separated list. For multi-word tags, use hyphens to join words. Example format: "single-word, two-words, another-tag". Do not use spaces within tags.',
 	ollamaHost: 'http://localhost:11434',
 	ollamaModel: 'llama2',
 	maxWordsPerTag: 2,
