@@ -5,31 +5,35 @@ All notable changes to the File to Note plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] - 2025-03-14
+## [0.2.1] - 2024-03-20
+### Fixed
+- Fixed YAML frontmatter formatting issues
+- Added filtering of '--' string from tag operations
+- Improved tag handling in all formats (YAML list, inline array, single tag)
 
+## [0.2.0] - 2024-03-19
 ### Added
-- AI-powered tag generation using multiple providers:
-  - OpenAI integration for generating tags from extracted text
-  - Google Gemini support (OAuth implementation pending)
-  - Local Ollama integration for offline tag generation
-- Text extraction from PDFs using the Text Extractor plugin
-- Customizable AI prompt with support for variables
-- Setting for maximum number of tags to generate
-- Setting for maximum words per tag (1-3 words)
-- Option to include or exclude extracted text in notes (off by default)
-- Manual tag entry when automatic generation fails
-- Improved tag formatting for Obsidian compatibility
-- Error handling and retry mechanism for API rate limits
+- Support for multiple AI providers (OpenAI, Ollama)
+- Configurable tag case formatting
+- Language preference settings
+- Improved error handling and retry logic
 
 ### Changed
-- Updated the default template to include tags in YAML format
-- Improved user interface with conditional settings based on selected AI provider
-- Enhanced error notifications with more descriptive messages
+- Refactored tag handling logic for better maintainability
+- Updated frontmatter management
+- Improved tag validation and filtering
 
 ### Fixed
-- Tag formatting to ensure compatibility with Obsidian's tag system
-- Proper handling of API errors and rate limits
-- Memory usage optimization by limiting text length for API requests
+- Fixed issues with tag merging and duplicates
+- Improved handling of existing frontmatter
+- Fixed tag case normalization
+
+## [0.1.0] - 2024-03-18
+### Added
+- Initial release
+- Basic file to note conversion
+- AI-powered tag generation
+- Support for PDF and image files
 
 ## [0.0.1] - 2025-03-10
 

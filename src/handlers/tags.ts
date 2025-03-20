@@ -210,7 +210,10 @@ function extractExistingTags(frontmatter: string): string[] {
         const tags: string[] = [];
         while ((match = regex.exec(yamlListContent)) !== null) {
             if (match[1]) {
-                tags.push(match[1].trim());
+                const tag = match[1].trim();
+                if (tag !== '--') {
+                    tags.push(tag);
+                }
             }
         }
         return tags;
@@ -223,7 +226,7 @@ function extractExistingTags(frontmatter: string): string[] {
         return inlineArrayMatch[1]
             .split(',')
             .map(tag => tag.trim().replace(/^['"]|['"]$/g, ''))
-            .filter(tag => tag);
+            .filter(tag => tag && tag !== '--');
     }
     
     // Try to match single tag format
@@ -231,7 +234,7 @@ function extractExistingTags(frontmatter: string): string[] {
     const singleTagMatch = frontmatter.match(/tags:\s*(.*?)(?:\n|$)/i);
     if (singleTagMatch && singleTagMatch[1]) {
         const singleTag = singleTagMatch[1].trim();
-        if (singleTag && singleTag !== "[]") {
+        if (singleTag && singleTag !== "[]" && singleTag !== '--') {
             return [singleTag.replace(/["']/g, '')];
         }
     }
@@ -244,7 +247,8 @@ function extractExistingTags(frontmatter: string): string[] {
  */
 function mergeTags(existingTags: string[], newTags: string[], languagePreference: LanguagePreference): string[] {
     const normalizedExisting = new Set(existingTags.map(tag => normalizeForComparison(tag)));
-    const uniqueNewTags = newTags.filter(tag => !normalizedExisting.has(normalizeForComparison(tag)));
+    const uniqueNewTags = newTags
+        .filter(tag => !normalizedExisting.has(normalizeForComparison(tag)) && tag !== '--');
     return [...existingTags, ...uniqueNewTags];
 }
 
@@ -252,15 +256,22 @@ function mergeTags(existingTags: string[], newTags: string[], languagePreference
  * Update frontmatter with new tags
  */
 function updateFrontmatterTags(frontmatter: string, tags: string[], tagCaseFormat: TagCaseFormat): string {
-    const formattedTags = formatTagsAsYamlList(tags, tagCaseFormat);
+    const formattedTags = tags
+        .filter(tag => tag !== '--')
+        .map(tag => `- ${formatTag(tag, tagCaseFormat)}`)
+        .join('\n');
     
     // Check if tags section exists
     if (frontmatter.includes('tags:')) {
-        // Replace existing tags section
-        return frontmatter.replace(/tags:\s*\[.*?\]/, `tags: ${formattedTags}`);
+        // Replace existing tags section with proper spacing
+        const updatedFrontmatter = frontmatter.replace(
+            /tags:[\s\S]*?(?=\n\w|$)/,
+            `tags:\n${formattedTags}`
+        );
+        return `${updatedFrontmatter}\n---\n`;
     } else {
-        // Add tags section before the end of frontmatter
-        return frontmatter.replace(/---\n$/, `tags: ${formattedTags}\n---\n`);
+        // Add tags section before the end of frontmatter with proper spacing
+        return frontmatter.replace(/---\n$/, `tags:\n${formattedTags}\n---\n`);
     }
 }
 
