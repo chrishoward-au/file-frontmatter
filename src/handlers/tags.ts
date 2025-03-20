@@ -49,21 +49,34 @@ async function generateValidTags(text: string, settings: TagFilesAndNotesSetting
     let validTags: string[] = [];
 
     while (passes < DEFAULT_VALUES.MAX_RETRIES) {
+        console.log(`Attempt ${passes + 1} of ${DEFAULT_VALUES.MAX_RETRIES}`);
         const rawTags = await getTagsFromAI(text, settings);
+        console.log('Raw tags received:', rawTags);
         passes++;
 
         const integrityResult = filterErroneousTags(rawTags, settings.maxWordsPerTag);
-        validTags = integrityResult.validTags;
+        console.log('Integrity check result:', {
+            validTags: integrityResult.validTags,
+            hasErroneousTags: integrityResult.hasErroneousTags
+        });
 
-        if (!integrityResult.hasErroneousTags) {
+        // If we have any valid tags, use them
+        if (integrityResult.validTags.length > 0) {
+            validTags = integrityResult.validTags;
+            // If we have valid tags but also some erroneous ones, log it but continue
+            if (integrityResult.hasErroneousTags) {
+                console.log('Found some valid tags but also some erroneous ones. Using valid tags only.');
+            }
             return validTags;
         }
 
-        console.log('Erroneous tags found, retrying...');
+        // If we have no valid tags, retry
+        console.log('No valid tags found, retrying...');
         await new Promise(resolve => setTimeout(resolve, TIMEOUTS.AI_RETRY_DELAY));
     }
 
-    console.log('Still found erroneous tags after retry, using valid tags only');
+    // If we get here, we've exhausted all retries
+    console.log('All retry attempts completed. Final valid tags:', validTags);
     return validTags;
 }
 

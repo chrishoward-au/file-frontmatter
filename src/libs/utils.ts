@@ -89,8 +89,17 @@ export function filterErroneousTags(tags: string[], maxWordsPerTag: number): {
     validTags: string[],
     hasErroneousTags: boolean
 } {
-    const validTags = tags.filter(tag => isValidTag(tag, maxWordsPerTag));
-    const hasErroneousTags = validTags.length < tags.length;
+    // Filter out invalid tags but keep valid ones
+    const validTags = tags.filter(tag => {
+        const isValid = isValidTag(tag, maxWordsPerTag);
+        if (!isValid) {
+            console.log(`Tag "${tag}" was filtered out due to word count`);
+        }
+        return isValid;
+    });
+
+    // Only mark as erroneous if we have no valid tags at all
+    const hasErroneousTags = validTags.length === 0;
 
     return { validTags, hasErroneousTags };
 }
